@@ -1,12 +1,75 @@
-
 import torch
-import numpy as np
+import numpy
 
 
 def get_random_problems(batch_size, problem_size):
-    problems = torch.rand(size=(batch_size, problem_size, 2))
-    # problems.shape: (batch, problem, 2)
-    return problems
+    depot_xy = torch.rand(size=(batch_size, 1, 2))
+    # shape: (batch, 1, 2)
+
+    node_xy = torch.rand(size=(batch_size, problem_size, 2))
+    # shape: (batch, problem, 2)
+
+    if problem_size == 20:
+        demand_scaler = 30
+    elif problem_size == 50:
+        demand_scaler = 40
+    elif problem_size == 100:
+        demand_scaler = 50
+    else:
+        raise NotImplementedError
+
+    node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
+    # shape: (batch, problem)
+
+    time_windows = torch.tensor(create_time_windows(batch_size, problem_size))
+    service_times = create_service_times(batch_size, problem_size)
+    travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy)
+    prices = create_prices(batch_size, problem_size)
+
+    travel_times = torch.tensor(travel_times)
+    prices = torch.tensor(prices)
+    service_times = torch.tensor(service_times)
+
+    return depot_xy, node_xy, node_demand, time_windows, prices, service_times, travel_times
+
+
+def create_service_times(batch_size, problem_size):
+    service_times = numpy.zeros((batch_size, problem_size))
+    for x in range(batch_size):
+        service_times[x, :] = numpy.random.uniform(0.2, 0.5, problem_size)
+    return service_times
+
+
+def create_prices(batch_size, problem_size):
+    prices = numpy.zeros((batch_size, problem_size + 1, problem_size + 1))
+    for x in range(batch_size):
+        prices[x, :, :] = numpy.random.rand(problem_size + 1, problem_size + 1)
+    return prices
+
+
+def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
+    time_matrix = numpy.zeros((batch_size, problem_size + 1, problem_size + 1))
+    for x in range(batch_size):
+        for i in range(problem_size + 1):
+            for j in range(problem_size + 1):
+                if i != j:
+                    if i == 0:
+                        time_matrix[x, i, j] = numpy.linalg.norm(depot_coors[x, i, :] - node_coors[x, j - 1, :])
+                    elif j == 0:
+                        time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - depot_coors[x, j, :])
+                    else:
+                        time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - node_coors[x, j - 1, :])
+
+    return time_matrix * 2
+
+
+def create_time_windows(batch_size, problem_size, minimum_margin=2):
+    time_windows = numpy.zeros((batch_size, problem_size, 2), dtype=int)
+    for x in range(batch_size):
+        for i in range(problem_size):
+            time_windows[x, i, 0] = numpy.random.randint(0, 10)
+            time_windows[x, i, 1] = numpy.random.randint(time_windows[x, i, 0] + minimum_margin, 18)
+    return time_windows
 
 
 def augment_xy_data_by_8_fold(problems):
