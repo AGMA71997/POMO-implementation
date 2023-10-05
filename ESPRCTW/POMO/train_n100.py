@@ -2,9 +2,8 @@
 # Machine Environment Config
 
 DEBUG_MODE = False
-USE_CUDA = not DEBUG_MODE
+USE_CUDA = False  # not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
-
 
 ##########################################################################################
 # Path Config
@@ -16,15 +15,13 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, "..")  # for problem_def
 sys.path.insert(0, "../..")  # for utils
 
-
 ##########################################################################################
 # import
 
 import logging
 from utils.utils import create_logger, copy_all_src
 
-from TSPTrainer import TSPTrainer as Trainer
-
+from ESPRCTWTrainer import ESPRCTWTrainer as Trainer
 
 ##########################################################################################
 # parameters
@@ -36,7 +33,7 @@ env_params = {
 
 model_params = {
     'embedding_dim': 128,
-    'sqrt_embedding_dim': 128**(1/2),
+    'sqrt_embedding_dim': 128 ** (1 / 2),
     'encoder_layer_num': 6,
     'qkv_dim': 16,
     'head_num': 8,
@@ -51,7 +48,7 @@ optimizer_params = {
         'weight_decay': 1e-6
     },
     'scheduler': {
-        'milestones': [3001,],
+        'milestones': [8001, 8051],
         'gamma': 0.1
     }
 }
@@ -59,15 +56,16 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 3100,
-    'train_episodes': 100 * 1000,
+    'epochs': 8100,
+    'train_episodes': 10 * 1000,
     'train_batch_size': 64,
+    'prev_model_path': None,
     'logging': {
-        'model_save_interval': 100,
-        'img_save_interval': 100,
+        'model_save_interval': 500,
+        'img_save_interval': 500,
         'log_image_params_1': {
             'json_foldername': 'log_image_style',
-            'filename': 'style_tsp_100.json'
+            'filename': 'style_cvrp_100.json'
         },
         'log_image_params_2': {
             'json_foldername': 'log_image_style',
@@ -76,18 +74,19 @@ trainer_params = {
     },
     'model_load': {
         'enable': False,  # enable loading pre-trained model
-        # 'path': './result/saved_tsp20_model',  # directory path of pre-trained model and log files saved.
-        # 'epoch': 510,  # epoch version of pre-trained model to laod.
+        # 'path': './result/saved_CVRP20_model',  # directory path of pre-trained model and log files saved.
+        # 'epoch': 2000,  # epoch version of pre-trained model to laod.
 
     }
 }
 
 logger_params = {
     'log_file': {
-        'desc': 'train__tsp_n100__3000epoch',
-        'filename': 'log.txt'
+        'desc': 'train_cvrp_n100_with_instNorm',
+        'filename': 'run_log'
     }
 }
+
 
 ##########################################################################################
 # main
@@ -112,8 +111,8 @@ def main():
 def _set_debug_mode():
     global trainer_params
     trainer_params['epochs'] = 2
-    trainer_params['train_episodes'] = 10
-    trainer_params['train_batch_size'] = 4
+    trainer_params['train_episodes'] = 4
+    trainer_params['train_batch_size'] = 2
 
 
 def _print_config():
@@ -121,7 +120,6 @@ def _print_config():
     logger.info('DEBUG_MODE: {}'.format(DEBUG_MODE))
     logger.info('USE_CUDA: {}, CUDA_DEVICE_NUM: {}'.format(USE_CUDA, CUDA_DEVICE_NUM))
     [logger.info(g_key + "{}".format(globals()[g_key])) for g_key in globals().keys() if g_key.endswith('params')]
-
 
 
 ##########################################################################################

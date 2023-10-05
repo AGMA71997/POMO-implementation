@@ -23,7 +23,7 @@ sys.path.insert(0, "../..")  # for utils
 import logging
 from utils.utils import create_logger, copy_all_src
 
-from TSPTester import TSPTester as Tester
+from ESPRCTWTester import ESPRCTWTester as Tester
 
 
 ##########################################################################################
@@ -45,28 +45,35 @@ model_params = {
     'eval_type': 'argmax',
 }
 
+
 tester_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
     'model_load': {
-        'path': './result/saved_tsp100_model2_longTrain',  # directory path of pre-trained model and log files saved.
-        'epoch': 3100,  # epoch version of pre-trained model to laod.
+        'path': './result/saved_CVRP100_model',  # directory path of pre-trained model and log files saved.
+        'epoch': 30500,  # epoch version of pre-trained model to laod.
     },
-    'test_episodes': 100*1000,
-    'test_batch_size': 10000,
+    'test_episodes': 10*1000,
+    'test_batch_size': 1000,
     'augmentation_enable': True,
     'aug_factor': 8,
-    'aug_batch_size': 100,
+    'aug_batch_size': 400,
+    'test_data_load': {
+        'enable': True,
+        'filename': '../vrp100_test_seed1234.pt'
+    },
 }
 if tester_params['augmentation_enable']:
     tester_params['test_batch_size'] = tester_params['aug_batch_size']
 
+
 logger_params = {
     'log_file': {
-        'desc': 'test__tsp100_longTrain',
+        'desc': 'test_cvrp100',
         'filename': 'log.txt'
     }
 }
+
 
 ##########################################################################################
 # main
@@ -79,8 +86,8 @@ def main():
     _print_config()
 
     tester = Tester(env_params=env_params,
-                    model_params=model_params,
-                    tester_params=tester_params)
+                      model_params=model_params,
+                      tester_params=tester_params)
 
     copy_all_src(tester.result_folder)
 
@@ -89,7 +96,7 @@ def main():
 
 def _set_debug_mode():
     global tester_params
-    tester_params['test_episodes'] = 100
+    tester_params['test_episodes'] = 10
 
 
 def _print_config():

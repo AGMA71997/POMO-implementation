@@ -2,8 +2,8 @@
 import torch
 from logging import getLogger
 
-from TSPEnv import TSPEnv as Env
-from TSPModel import TSPModel as Model
+from ESPRCTWEnv import ESPRCTWEnv as Env
+from ESPRCTWModel import ESPRCTWModel as Model
 
 from torch.optim import Adam as Optimizer
 from torch.optim.lr_scheduler import MultiStepLR as Scheduler
@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import MultiStepLR as Scheduler
 from utils.utils import *
 
 
-class TSPTrainer:
+class ESPRCTWTrainer:
     def __init__(self,
                  env_params,
                  model_params,
@@ -86,7 +86,8 @@ class TSPTrainer:
             model_save_interval = self.trainer_params['logging']['model_save_interval']
             img_save_interval = self.trainer_params['logging']['img_save_interval']
 
-            if epoch > 1:  # save latest images, every epoch
+            # Save latest images, every epoch
+            if epoch > 1:
                 self.logger.info("Saving log_image")
                 image_prefix = '{}/latest'.format(self.result_folder)
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_1'],
@@ -94,6 +95,7 @@ class TSPTrainer:
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_2'],
                                     self.result_log, labels=['train_loss'])
 
+            # Save Model
             if all_done or (epoch % model_save_interval) == 0:
                 self.logger.info("Saving trained_model")
                 checkpoint_dict = {
@@ -105,6 +107,7 @@ class TSPTrainer:
                 }
                 torch.save(checkpoint_dict, '{}/checkpoint-{}.pt'.format(self.result_folder, epoch))
 
+            # Save Image
             if all_done or (epoch % img_save_interval) == 0:
                 image_prefix = '{}/img/checkpoint-{}'.format(self.result_folder, epoch)
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_1'],
@@ -112,6 +115,7 @@ class TSPTrainer:
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_2'],
                                     self.result_log, labels=['train_loss'])
 
+            # All-done announcement
             if all_done:
                 self.logger.info(" *** Training Done *** ")
                 self.logger.info("Now, printing log array...")
@@ -166,6 +170,7 @@ class TSPTrainer:
         # POMO Rollout
         ###############################################
         state, reward, done = self.env.pre_step()
+
         while not done:
             selected, prob = self.model(state)
             # shape: (batch, pomo)

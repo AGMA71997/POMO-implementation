@@ -2,7 +2,7 @@
 # Machine Environment Config
 
 DEBUG_MODE = False
-USE_CUDA = not DEBUG_MODE
+USE_CUDA = False #not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
 
 
@@ -23,7 +23,7 @@ sys.path.insert(0, "../..")  # for utils
 import logging
 from utils.utils import create_logger, copy_all_src
 
-from TSPTrainer import TSPTrainer as Trainer
+from ESPRCTWTrainer import ESPRCTWTrainer as Trainer
 
 
 ##########################################################################################

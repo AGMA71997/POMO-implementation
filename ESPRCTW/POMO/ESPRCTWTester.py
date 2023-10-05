@@ -4,13 +4,13 @@ import torch
 import os
 from logging import getLogger
 
-from TSPEnv import TSPEnv as Env
-from TSPModel import TSPModel as Model
+from ESPRCTWEnv import ESPRCTWEnv as Env
+from ESPRCTWModel import ESPRCTWModel as Model
 
 from utils.utils import *
 
 
-class TSPTester:
+class ESPRCTWTester:
     def __init__(self,
                  env_params,
                  model_params,
@@ -56,6 +56,9 @@ class TSPTester:
 
         score_AM = AverageMeter()
         aug_score_AM = AverageMeter()
+
+        if self.tester_params['test_data_load']['enable']:
+            self.env.use_saved_problems(self.tester_params['test_data_load']['filename'], self.device)
 
         test_num_episode = self.tester_params['test_episodes']
         episode = 0
