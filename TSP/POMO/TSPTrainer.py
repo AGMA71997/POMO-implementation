@@ -168,6 +168,7 @@ class TSPTrainer:
         state, reward, done = self.env.pre_step()
         while not done:
             selected, prob = self.model(state)
+            print("##########")
             # shape: (batch, pomo)
             state, reward, done = self.env.step(selected)
             prob_list = torch.cat((prob_list, prob[:, :, None]), dim=2)

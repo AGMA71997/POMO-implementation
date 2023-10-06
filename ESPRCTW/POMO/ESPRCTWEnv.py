@@ -78,6 +78,8 @@ class ESPRCTWEnv:
         # shape: (batch, pomo)
         self.selected_node_list = None
         # shape: (batch, pomo, 0~)
+        self.current_times = None
+        self.current_prices = None
 
         # Dynamic-2
         ####################################
@@ -91,8 +93,6 @@ class ESPRCTWEnv:
         # shape: (batch, pomo, problem+1)
         self.finished = None
         # shape: (batch, pomo)
-        self.current_times = None
-        self.current_prices = None
 
         # states to return
         ####################################
@@ -175,11 +175,13 @@ class ESPRCTWEnv:
     def reset(self):
         self.selected_count = 0
         self.current_node = None
+        self.current_times = torch.zeros(size=(self.batch_size, self.pomo_size))
+        self.current_prices = torch.zeros(size=(self.batch_size, self.pomo_size))
         # shape: (batch, pomo)
         self.selected_node_list = torch.zeros((self.batch_size, self.pomo_size, 0), dtype=torch.long)
         # shape: (batch, pomo, 0~)
 
-        self.at_the_depot = torch.ones(size=(self.batch_size, self.pomo_size), dtype=torch.bool)
+        self.at_the_depot = torch.zeros(size=(self.batch_size, self.pomo_size), dtype=torch.bool)
         # shape: (batch, pomo)
         self.load = torch.ones(size=(self.batch_size, self.pomo_size))
         # shape: (batch, pomo)
@@ -190,9 +192,6 @@ class ESPRCTWEnv:
         self.finished = torch.zeros(size=(self.batch_size, self.pomo_size), dtype=torch.bool)
         # shape: (batch, pomo)
 
-        self.current_times = torch.zeros(size=(self.batch_size, self.pomo_size))
-        self.current_prices = torch.zeros(size=(self.batch_size, self.pomo_size))
-
         reward = None
         done = False
         return self.reset_state, reward, done
@@ -201,10 +200,10 @@ class ESPRCTWEnv:
         self.step_state.selected_count = self.selected_count
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
-        self.step_state.ninf_mask = self.ninf_mask
-        self.step_state.finished = self.finished
         self.step_state.current_times = self.current_times
         self.step_state.current_prices = self.current_prices
+        self.step_state.ninf_mask = self.ninf_mask
+        self.step_state.finished = self.finished
 
         reward = None
         done = False
@@ -229,7 +228,8 @@ class ESPRCTWEnv:
 
         # Dynamic-2
         ####################################
-        self.at_the_depot = (selected == 0)
+        if self.selected_count > 1:
+            self.at_the_depot = (selected == 0)
 
         demand_list = self.depot_node_demand[:, None, :].expand(self.batch_size, self.pomo_size, -1)
         # shape: (batch, pomo, problem+1)
@@ -254,7 +254,9 @@ class ESPRCTWEnv:
         previous_indexes = previous_indexes[:, :, None, :]
 
         selected_travel_matrices = travel_time_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
+        # shape: (batch, pomo, problem+1)
         selected_travel_times = selected_travel_matrices.gather(dim=2, index=gathering_index).squeeze(dim=2)
+        # shape: (batch, pomo)
         selected_price_matrices = price_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
         selected_prices = selected_price_matrices.gather(dim=2, index=gathering_index).squeeze(dim=2)
 
@@ -262,46 +264,75 @@ class ESPRCTWEnv:
         gathering_index2 = gathering_index2[:, :, None, :]
 
         selected_time_windows = time_window_list.gather(dim=2, index=gathering_index2).squeeze(dim=2)
+        # shape: (batch, pomo, 2)
 
-        gathering_index3 = torch.ones((self.batch_size, self.pomo_size), dtype=torch.int64)
-        gathering_index3 = gathering_index3[:, :, None]
-        selected_window_1 = selected_time_windows.gather(dim=2, index=gathering_index3).squeeze(dim=2)
         gathering_index4 = torch.zeros((self.batch_size, self.pomo_size), dtype=torch.int64)
         gathering_index4 = gathering_index4[:, :, None]
         selected_window_0 = selected_time_windows.gather(dim=2, index=gathering_index4).squeeze(dim=2)
-
-        self.current_times = self.current_times + selected_travel_times
+        # shape: (batch, pomo)
 
         self.load -= selected_demand
-        # self.load[self.at_the_depot] = 1  # refill loaded at the depot
+
+        self.current_times = self.current_times + selected_travel_times
+        self.current_times = torch.maximum(self.current_times, selected_window_0)
+        self.current_times = self.current_times + selected_service_times
 
         self.visited_ninf_flag[self.BATCH_IDX, self.POMO_IDX, selected] = float('-inf')
         # shape: (batch, pomo, problem+1)
 
-        '''
-        self.visited_ninf_flag[:, :, 0][
-            ~self.at_the_depot] = 0  # depot is considered unvisited, unless you are AT the depot'''
+        if self.selected_count == 2:
+            self.visited_ninf_flag[:, :, 0] = 0
 
         self.ninf_mask = self.visited_ninf_flag.clone()
         round_error_epsilon = 0.00001
         demand_too_large = self.load[:, :, None] + round_error_epsilon < demand_list
-        too_late = self.current_times + round_error_epsilon > selected_window_1
 
+        gathering_index5 = selected[:, :, None].expand(-1, -1, self.problem_size + 1)
+        gathering_index5 = gathering_index5[:, :, None, :]
+        future_travel_matrices = travel_time_list.gather(dim=2, index=gathering_index5).squeeze(dim=2)
         # shape: (batch, pomo, problem+1)
+
+        gathering_index3 = torch.ones((self.batch_size, self.pomo_size, self.problem_size + 1), dtype=torch.int64)
+        gathering_index3 = gathering_index3[:, :, :, None]
+        future_window_1 = time_window_list.gather(dim=3, index=gathering_index3).squeeze(dim=3)
+        # shape: (batch, pomo, problem+1)
+
+        future_arrivals = self.current_times[:, :, None] + future_travel_matrices
+
+        too_late = future_arrivals + round_error_epsilon > future_window_1
+
+        gathering_index6 = torch.zeros((self.batch_size, self.pomo_size, self.problem_size + 1), dtype=torch.int64)
+        gathering_index6 = gathering_index6[:, :, :, None]
+        future_window_0 = time_window_list.gather(dim=3, index=gathering_index6).squeeze(dim=3)
+        # shape: (batch, pomo, problem+1)
+
+        future_entries = torch.maximum(future_arrivals, future_window_0)
+        future_departures = future_entries + service_time_list
+
+        gathering_index7 = torch.zeros((self.batch_size, self.pomo_size, self.problem_size + 1), dtype=torch.int64)
+        gathering_index7 = gathering_index7[:, :, :, None]
+        travel_time_to_depot = travel_time_list.gather(dim=3, index=gathering_index7).squeeze(dim=3)
+        # shape: (batch, pomo, problem+1)
+
+        depot_arrival = future_departures + travel_time_to_depot
+        # shape: (batch, pomo, problem+1)
+        depot_time_windows = self.depot_node_time_windows[:, 0, 1]
+        depot_time_windows = depot_time_windows[:, None, None].expand(-1, self.pomo_size, self.problem_size + 1)
+
+        cant_reach_depot = depot_arrival + round_error_epsilon > depot_time_windows
+        # shape: (batch, pomo, problem+1)
+
         self.ninf_mask[demand_too_large] = float('-inf')
         self.ninf_mask[too_late] = float('-inf')
+        self.ninf_mask[cant_reach_depot] = float('-inf')
         # shape: (batch, pomo, problem+1)
 
         self.current_prices = self.current_prices + selected_prices
 
-        newly_finished = (self.at_the_depot == True)
-
+        newly_finished = self.at_the_depot
         # shape: (batch, pomo)
         self.finished = self.finished + newly_finished
         # shape: (batch, pomo)
-
-        self.current_times = torch.maximum(self.current_times, selected_window_0)
-        self.current_times = self.current_times + selected_service_times
 
         # do not mask depot for finished episode.
         self.ninf_mask[:, :, 0][self.finished] = 0
@@ -309,13 +340,15 @@ class ESPRCTWEnv:
         self.step_state.selected_count = self.selected_count
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
+        self.step_state.current_times = self.current_times
+        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
         # returning values
         done = self.finished.all()
         if done:
-            reward = self.current_prices  # note the minus sign!
+            reward = self.current_prices
         else:
             reward = None
 
@@ -331,11 +364,11 @@ def main():
     env = ESPRCTWEnv(**env_params)
     env.load_problems(batch_size)
     env.reset()
-    for i in range(10):
-        selected = torch.randint(0, 20, (batch_size, 20))
+    for i in range(1):
+        selected = torch.randint(1, 20, (batch_size, 20))
         env.step(selected)
-        print(env.current_prices)
-        print(i)
+        # print(env.current_prices)
+        # print(i)
 
 
 if __name__ == "__main__":

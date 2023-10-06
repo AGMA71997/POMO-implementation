@@ -65,7 +65,7 @@ trainer_params = {
         'img_save_interval': 500,
         'log_image_params_1': {
             'json_foldername': 'log_image_style',
-            'filename': 'style_cvrp_100.json'
+            'filename': 'style_esprctw_100.json'
         },
         'log_image_params_2': {
             'json_foldername': 'log_image_style',
@@ -82,7 +82,7 @@ trainer_params = {
 
 logger_params = {
     'log_file': {
-        'desc': 'train_cvrp_n100_with_instNorm',
+        'desc': 'train_esprctw_n100',
         'filename': 'run_log'
     }
 }

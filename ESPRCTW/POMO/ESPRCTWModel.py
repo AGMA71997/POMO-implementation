@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -33,7 +32,6 @@ class ESPRCTWModel(nn.Module):
         batch_size = state.BATCH_IDX.size(0)
         pomo_size = state.BATCH_IDX.size(1)
 
-
         if state.selected_count == 0:  # First Move, depot
             selected = torch.zeros(size=(batch_size, pomo_size), dtype=torch.long)
             prob = torch.ones(size=(batch_size, pomo_size))
@@ -49,7 +47,7 @@ class ESPRCTWModel(nn.Module):
             # self.decoder.set_q2(encoded_first_node)
 
         elif state.selected_count == 1:  # Second Move, POMO
-            selected = torch.arange(start=1, end=pomo_size+1)[None, :].expand(batch_size, pomo_size)
+            selected = torch.arange(start=1, end=pomo_size + 1)[None, :].expand(batch_size, pomo_size)
             prob = torch.ones(size=(batch_size, pomo_size))
 
         else:
@@ -182,7 +180,7 @@ class ESPRCTW_Decoder(nn.Module):
 
         # self.Wq_1 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         # self.Wq_2 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
-        self.Wq_last = nn.Linear(embedding_dim+1, head_num * qkv_dim, bias=False)
+        self.Wq_last = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)
         self.Wk = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         self.Wv = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
 
@@ -296,6 +294,7 @@ def multi_head_attention(q, k, v, rank2_ninf_mask=None, rank3_ninf_mask=None):
     input_s = k.size(2)
 
     score = torch.matmul(q, k.transpose(2, 3))
+
     # shape: (batch, head_num, n, problem)
 
     score_scaled = score / torch.sqrt(torch.tensor(key_dim, dtype=torch.float))
@@ -362,6 +361,7 @@ class AddAndBatchNormalization(nn.Module):
         back_trans = normalized.reshape(batch_s, problem_s, embedding_dim)
 
         return back_trans
+
 
 class FeedForward(nn.Module):
     def __init__(self, **model_params):
