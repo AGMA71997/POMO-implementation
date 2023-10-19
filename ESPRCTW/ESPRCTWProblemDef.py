@@ -20,17 +20,18 @@ def get_random_problems(batch_size, problem_size):
 
     node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
     # shape: (batch, problem)
-
-    time_windows = torch.tensor(create_time_windows(batch_size, problem_size))
-    service_times = create_service_times(batch_size, problem_size)
-    travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy)
+    depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
+    tw_scalar = 18
+    time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar))/float(tw_scalar)
+    service_times = create_service_times(batch_size, problem_size)/float(tw_scalar)
+    travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy)/float(tw_scalar)
     prices = create_prices(batch_size, problem_size)
 
     travel_times = torch.tensor(travel_times)
     prices = torch.tensor(prices)
     service_times = torch.tensor(service_times)
 
-    return depot_xy, node_xy, node_demand, time_windows, prices, service_times, travel_times
+    return depot_xy, node_xy, node_demand, time_windows, depot_time_window, prices, service_times, travel_times
 
 
 def create_service_times(batch_size, problem_size):
@@ -41,9 +42,7 @@ def create_service_times(batch_size, problem_size):
 
 
 def create_prices(batch_size, problem_size):
-    prices = numpy.zeros((batch_size, problem_size + 1, problem_size + 1))
-    for x in range(batch_size):
-        prices[x, :, :] = numpy.random.rand(problem_size + 1, problem_size + 1)
+    prices = numpy.random.rand(batch_size, problem_size + 1, problem_size + 1)
     return prices
 
 
@@ -63,12 +62,12 @@ def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
     return time_matrix * 2
 
 
-def create_time_windows(batch_size, problem_size, minimum_margin=2):
+def create_time_windows(batch_size, problem_size, tw_scalar, minimum_margin=2):
     time_windows = numpy.zeros((batch_size, problem_size, 2), dtype=int)
     for x in range(batch_size):
         for i in range(problem_size):
             time_windows[x, i, 0] = numpy.random.randint(0, 10)
-            time_windows[x, i, 1] = numpy.random.randint(time_windows[x, i, 0] + minimum_margin, 18)
+            time_windows[x, i, 1] = numpy.random.randint(time_windows[x, i, 0] + minimum_margin, tw_scalar)
     return time_windows
 
 

@@ -16,6 +16,7 @@ class Reset_State:
     prices: torch.Tensor = None
     service_times: torch.Tensor = None
     travel_times: torch.Tensor = None
+    depot_time_window: torch.Tensor = None
 
 
 @dataclass
@@ -50,6 +51,7 @@ class ESPRCTWEnv:
         self.saved_node_xy = None
         self.saved_node_demand = None
         self.saved_time_windows = None
+        self.saved_depot_time_window = None
         self.saved_prices = None
         self.saved_service_times = None
         self.saved_travel_times = None
@@ -107,6 +109,7 @@ class ESPRCTWEnv:
         self.saved_node_xy = loaded_dict['node_xy']
         self.saved_node_demand = loaded_dict['node_demand']
         self.saved_time_windows = loaded_dict['time_windows']
+        self.saved_depot_time_window = loaded_dict['depot_time_window']
         self.saved_prices = loaded_dict['prices']
         self.saved_service_times = loaded_dict['service_times']
         self.saved_travel_times = loaded_dict['travel_times']
@@ -116,13 +119,14 @@ class ESPRCTWEnv:
         self.batch_size = batch_size
 
         if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand, time_windows, prices, service_times, travel_times = get_random_problems(
+            depot_xy, node_xy, node_demand, time_windows, depot_time_window, prices, service_times, travel_times = get_random_problems(
                 batch_size, self.problem_size)
         else:
             depot_xy = self.saved_depot_xy[self.saved_index:self.saved_index + batch_size]
             node_xy = self.saved_node_xy[self.saved_index:self.saved_index + batch_size]
             node_demand = self.saved_node_demand[self.saved_index:self.saved_index + batch_size]
             time_windows = self.saved_time_windows[self.saved_index:self.saved_index + batch_size]
+            depot_time_window = self.saved_depot_time_window[self.saved_index:self.saved_index + batch_size]
             prices = self.saved_prices[self.saved_index:self.saved_index + batch_size]
             service_times = self.saved_service_times[self.saved_index:self.saved_index + batch_size]
             travel_times = self.saved_travel_times[self.saved_index:self.saved_index + batch_size]
@@ -135,6 +139,7 @@ class ESPRCTWEnv:
                 node_xy = augment_xy_data_by_8_fold(node_xy)
                 node_demand = node_demand.repeat(8, 1)
                 time_windows = time_windows.repeat(8, 1)
+                depot_time_window = depot_time_window.repeat(8, 1)
                 prices = prices.repeat(8, 1)
                 service_times = service_times.repeat(8, 1)
                 travel_times = travel_times.repeat(8, 1)
@@ -148,9 +153,8 @@ class ESPRCTWEnv:
         self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
         # shape: (batch, problem+1)
 
-        depot_time_window = torch.tensor([0, 18]).repeat(self.batch_size, 1)
-
-        self.depot_node_time_windows = torch.cat((depot_time_window[:, None, :], time_windows), dim=1)
+        self.depot_node_time_windows = torch.cat((depot_time_window, time_windows), dim=1)
+        # shape: (batch, problem+1, 2)
 
         depot_service_time = torch.zeros(size=(self.batch_size, 1))
         self.depot_node_service_time = torch.cat((depot_service_time, service_times), dim=1)
@@ -165,6 +169,7 @@ class ESPRCTWEnv:
         self.reset_state.node_xy = node_xy
         self.reset_state.node_demand = node_demand
         self.reset_state.time_windows = time_windows
+        self.reset_state.depot_time_window = depot_time_window
         self.reset_state.travel_times = travel_times
         self.reset_state.prices = prices
         self.reset_state.service_times = service_times

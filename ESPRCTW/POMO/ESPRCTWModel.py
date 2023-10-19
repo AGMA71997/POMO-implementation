@@ -21,10 +21,17 @@ class ESPRCTWModel(nn.Module):
         # shape: (batch, problem, 2)
         node_demand = reset_state.node_demand
         # shape: (batch, problem)
-        node_xy_demand = torch.cat((node_xy, node_demand[:, :, None]), dim=2)
-        # shape: (batch, problem, 3)
+        depot_time_window = reset_state.depot_time_window
+        # shape: (batch, 1, 2)
+        node_time_windows = reset_state.time_windows
+        # shape: (batch, problem, 2)
+        node_xy_demand_tw = torch.cat((node_xy, node_time_windows, node_demand[:, :, None]), dim=2)
+        # shape: (batch, problem, 5)
 
-        self.encoded_nodes = self.encoder(depot_xy, node_xy_demand)
+        depot_xy_tw = torch.cat((depot_xy, depot_time_window), dim=2)
+        # shape: (batch, 1, 4)
+
+        self.encoded_nodes = self.encoder(depot_xy_tw, node_xy_demand_tw)
         # shape: (batch, problem+1, embedding)
         self.decoder.set_kv(self.encoded_nodes)
 
@@ -103,17 +110,17 @@ class ESPRCTW_Encoder(nn.Module):
         embedding_dim = self.model_params['embedding_dim']
         encoder_layer_num = self.model_params['encoder_layer_num']
 
-        self.embedding_depot = nn.Linear(2, embedding_dim)
-        self.embedding_node = nn.Linear(3, embedding_dim)
+        self.embedding_depot = nn.Linear(4, embedding_dim)
+        self.embedding_node = nn.Linear(5, embedding_dim)
         self.layers = nn.ModuleList([EncoderLayer(**model_params) for _ in range(encoder_layer_num)])
 
-    def forward(self, depot_xy, node_xy_demand):
-        # depot_xy.shape: (batch, 1, 2)
-        # node_xy_demand.shape: (batch, problem, 3)
+    def forward(self, depot_xy_tw, node_xy_demand_tw):
+        # depot_xy.shape: (batch, 1, 4)
+        # node_xy_demand.shape: (batch, problem, 5)
 
-        embedded_depot = self.embedding_depot(depot_xy)
+        embedded_depot = self.embedding_depot(depot_xy_tw)
         # shape: (batch, 1, embedding)
-        embedded_node = self.embedding_node(node_xy_demand)
+        embedded_node = self.embedding_node(node_xy_demand_tw)
         # shape: (batch, problem, embedding)
 
         out = torch.cat((embedded_depot, embedded_node), dim=1)
