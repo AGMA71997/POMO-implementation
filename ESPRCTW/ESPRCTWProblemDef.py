@@ -22,9 +22,9 @@ def get_random_problems(batch_size, problem_size):
     # shape: (batch, problem)
     depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
     tw_scalar = 18
-    time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar))/float(tw_scalar)
-    service_times = create_service_times(batch_size, problem_size)/float(tw_scalar)
-    travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy)/float(tw_scalar)
+    time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar)) / float(tw_scalar)
+    service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)
+    travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy) / float(tw_scalar)
     prices = create_prices(batch_size, problem_size)
 
     travel_times = torch.tensor(travel_times)
@@ -43,6 +43,7 @@ def create_service_times(batch_size, problem_size):
 
 def create_prices(batch_size, problem_size):
     prices = numpy.random.rand(batch_size, problem_size + 1, problem_size + 1)
+    prices[:, 0, 0] = 0
     return prices
 
 

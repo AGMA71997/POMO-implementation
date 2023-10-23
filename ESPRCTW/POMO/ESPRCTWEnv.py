@@ -216,7 +216,6 @@ class ESPRCTWEnv:
 
     def step(self, selected):
         # selected.shape: (batch, pomo)
-
         # Dynamic-1
         ####################################
         self.selected_count += 1
@@ -340,6 +339,7 @@ class ESPRCTWEnv:
         # shape: (batch, pomo)
 
         # do not mask depot for finished episode.
+        self.ninf_mask[:, :, :][self.finished] = float('-inf')
         self.ninf_mask[:, :, 0][self.finished] = 0
 
         self.step_state.selected_count = self.selected_count
