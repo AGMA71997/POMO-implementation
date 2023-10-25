@@ -2,7 +2,7 @@
 # Machine Environment Config
 
 DEBUG_MODE = False
-USE_CUDA = not DEBUG_MODE
+USE_CUDA = False #not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
 
 
@@ -49,12 +49,12 @@ tester_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
     'model_load': {
-        'path': './result/saved_tsp20_model',  # directory path of pre-trained model and log files saved.
-        'epoch': 510,  # epoch version of pre-trained model to laod.
+        'path': './result/saved_esprctw20_model',  # directory path of pre-trained model and log files saved.
+        'epoch': 15,  # epoch version of pre-trained model to laod.
     },
-    'test_episodes': 100*1000,
-    'test_batch_size': 10000,
-    'augmentation_enable': True,
+    'test_episodes': 1000,
+    'test_batch_size': 1000,
+    'augmentation_enable': False,
     'aug_factor': 8,
     'aug_batch_size': 1000,
 }
@@ -63,7 +63,7 @@ if tester_params['augmentation_enable']:
 
 logger_params = {
     'log_file': {
-        'desc': 'test__tsp_n20',
+        'desc': 'test_esprctw_n20',
         'filename': 'run_log'
     }
 }
@@ -82,7 +82,7 @@ def main():
                     model_params=model_params,
                     tester_params=tester_params)
 
-    copy_all_src(tester.result_folder)
+    # copy_all_src(tester.result_folder)
 
     tester.run()
 

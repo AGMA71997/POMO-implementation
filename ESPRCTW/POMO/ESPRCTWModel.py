@@ -21,17 +21,22 @@ class ESPRCTWModel(nn.Module):
         # shape: (batch, problem, 2)
         node_demand = reset_state.node_demand
         # shape: (batch, problem)
+        duals = reset_state.duals
+        # shape: (batch, problem)
+        service_times = reset_state.service_times
+        # shape: (batch, problem)
         depot_time_window = reset_state.depot_time_window
         # shape: (batch, 1, 2)
         node_time_windows = reset_state.time_windows
         # shape: (batch, problem, 2)
-        node_xy_demand_tw = torch.cat((node_xy, node_time_windows, node_demand[:, :, None]), dim=2)
-        # shape: (batch, problem, 5)
 
-        depot_xy_tw = torch.cat((depot_xy, depot_time_window), dim=2)
+        node_features = torch.cat((node_xy, node_time_windows, node_demand[:, :, None], duals[:, :, None], service_times[:, :, None]), dim=2)
+        # shape: (batch, problem, 7)
+
+        depot_features = torch.cat((depot_xy, depot_time_window), dim=2)
         # shape: (batch, 1, 4)
 
-        self.encoded_nodes = self.encoder(depot_xy_tw, node_xy_demand_tw)
+        self.encoded_nodes = self.encoder(depot_features, node_features)
         # shape: (batch, problem+1, embedding)
         self.decoder.set_kv(self.encoded_nodes)
 
@@ -111,16 +116,16 @@ class ESPRCTW_Encoder(nn.Module):
         encoder_layer_num = self.model_params['encoder_layer_num']
 
         self.embedding_depot = nn.Linear(4, embedding_dim)
-        self.embedding_node = nn.Linear(5, embedding_dim)
+        self.embedding_node = nn.Linear(7, embedding_dim)
         self.layers = nn.ModuleList([EncoderLayer(**model_params) for _ in range(encoder_layer_num)])
 
-    def forward(self, depot_xy_tw, node_xy_demand_tw):
-        # depot_xy.shape: (batch, 1, 4)
-        # node_xy_demand.shape: (batch, problem, 5)
+    def forward(self, depot_features, node_features):
+        # depot_features.shape: (batch, 1, 4)
+        # node_features.shape: (batch, problem, 7)
 
-        embedded_depot = self.embedding_depot(depot_xy_tw)
+        embedded_depot = self.embedding_depot(depot_features)
         # shape: (batch, 1, embedding)
-        embedded_node = self.embedding_node(node_xy_demand_tw)
+        embedded_node = self.embedding_node(node_features)
         # shape: (batch, problem, embedding)
 
         out = torch.cat((embedded_depot, embedded_node), dim=1)

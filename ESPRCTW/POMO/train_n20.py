@@ -56,8 +56,8 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 510,
-    'train_episodes': 100 * 1000,
+    'epochs': 15,
+    'train_episodes': 128,
     'train_batch_size': 64,
     'prev_model_path': None,
     'logging': {
@@ -103,7 +103,7 @@ def main():
                       optimizer_params=optimizer_params,
                       trainer_params=trainer_params)
 
-    copy_all_src(trainer.result_folder)
+    # copy_all_src(trainer.result_folder)
 
     trainer.run()
 

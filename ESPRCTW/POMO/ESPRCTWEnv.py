@@ -13,7 +13,7 @@ class Reset_State:
     node_demand: torch.Tensor = None
     # shape: (batch, problem)
     time_windows: torch.Tensor = None
-    prices: torch.Tensor = None
+    duals: torch.Tensor = None
     service_times: torch.Tensor = None
     travel_times: torch.Tensor = None
     depot_time_window: torch.Tensor = None
@@ -34,7 +34,6 @@ class Step_State:
     finished: torch.Tensor = None
     # shape: (batch, pomo)
     current_times: torch.Tensor = None
-    current_prices: torch.Tensor = None
 
 
 class ESPRCTWEnv:
@@ -52,7 +51,7 @@ class ESPRCTWEnv:
         self.saved_node_demand = None
         self.saved_time_windows = None
         self.saved_depot_time_window = None
-        self.saved_prices = None
+        self.saved_duals = None
         self.saved_service_times = None
         self.saved_travel_times = None
         self.saved_index = None
@@ -68,7 +67,7 @@ class ESPRCTWEnv:
         self.depot_node_demand = None
         self.depot_node_service_time = None
         self.depot_node_time_windows = None
-        self.prices = None
+        self.depot_node_duals = None
         self.travel_times = None
 
         # shape: (batch, problem+1)
@@ -110,7 +109,7 @@ class ESPRCTWEnv:
         self.saved_node_demand = loaded_dict['node_demand']
         self.saved_time_windows = loaded_dict['time_windows']
         self.saved_depot_time_window = loaded_dict['depot_time_window']
-        self.saved_prices = loaded_dict['prices']
+        self.saved_duals = loaded_dict['duals']
         self.saved_service_times = loaded_dict['service_times']
         self.saved_travel_times = loaded_dict['travel_times']
         self.saved_index = 0
@@ -119,7 +118,7 @@ class ESPRCTWEnv:
         self.batch_size = batch_size
 
         if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand, time_windows, depot_time_window, prices, service_times, travel_times = get_random_problems(
+            depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times = get_random_problems(
                 batch_size, self.problem_size)
         else:
             depot_xy = self.saved_depot_xy[self.saved_index:self.saved_index + batch_size]
@@ -127,7 +126,7 @@ class ESPRCTWEnv:
             node_demand = self.saved_node_demand[self.saved_index:self.saved_index + batch_size]
             time_windows = self.saved_time_windows[self.saved_index:self.saved_index + batch_size]
             depot_time_window = self.saved_depot_time_window[self.saved_index:self.saved_index + batch_size]
-            prices = self.saved_prices[self.saved_index:self.saved_index + batch_size]
+            duals = self.saved_duals[self.saved_index:self.saved_index + batch_size]
             service_times = self.saved_service_times[self.saved_index:self.saved_index + batch_size]
             travel_times = self.saved_travel_times[self.saved_index:self.saved_index + batch_size]
             self.saved_index += batch_size
@@ -140,7 +139,7 @@ class ESPRCTWEnv:
                 node_demand = node_demand.repeat(8, 1)
                 time_windows = time_windows.repeat(8, 1)
                 depot_time_window = depot_time_window.repeat(8, 1)
-                prices = prices.repeat(8, 1)
+                duals = duals.repeat(8, 1)
                 service_times = service_times.repeat(8, 1)
                 travel_times = travel_times.repeat(8, 1)
             else:
@@ -153,13 +152,15 @@ class ESPRCTWEnv:
         self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
         # shape: (batch, problem+1)
 
+        depot_dual = torch.zeros(size=(self.batch_size, 1))
+        self.depot_node_duals = torch.cat((depot_dual, duals), dim=1)
+
         self.depot_node_time_windows = torch.cat((depot_time_window, time_windows), dim=1)
         # shape: (batch, problem+1, 2)
 
         depot_service_time = torch.zeros(size=(self.batch_size, 1))
         self.depot_node_service_time = torch.cat((depot_service_time, service_times), dim=1)
 
-        self.prices = prices
         self.travel_times = travel_times
 
         self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.pomo_size)
@@ -171,7 +172,7 @@ class ESPRCTWEnv:
         self.reset_state.time_windows = time_windows
         self.reset_state.depot_time_window = depot_time_window
         self.reset_state.travel_times = travel_times
-        self.reset_state.prices = prices
+        self.reset_state.duals = duals
         self.reset_state.service_times = service_times
 
         self.step_state.BATCH_IDX = self.BATCH_IDX
@@ -206,7 +207,6 @@ class ESPRCTWEnv:
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
         self.step_state.current_times = self.current_times
-        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
@@ -242,7 +242,7 @@ class ESPRCTWEnv:
 
         travel_time_list = self.travel_times[:, None, :, :].expand(self.batch_size, self.pomo_size, -1, -1)
         # shape: (batch, pomo, problem+1, problem+1)
-        price_list = self.prices[:, None, :, :].expand(self.batch_size, self.pomo_size, -1, -1)
+        dual_list = self.depot_node_duals[:, None, :].expand(self.batch_size, self.pomo_size, -1)
 
         time_window_list = self.depot_node_time_windows[:, None, :, :].expand(self.batch_size, self.pomo_size, -1, -1)
         # shape: (batch, pomo, problem+1, 2)
@@ -252,17 +252,19 @@ class ESPRCTWEnv:
         selected_demand = demand_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
         # shape: (batch, pomo)
 
+        previous_indexes = previous_indexes[:, :, None]
+        selected_duals = dual_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
+        # shape: (batch, pomo)
+
         selected_service_times = service_time_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
 
-        previous_indexes = previous_indexes[:, :, None].expand(-1, -1, self.problem_size + 1)
+        previous_indexes = previous_indexes.expand(-1, -1, self.problem_size + 1)
         previous_indexes = previous_indexes[:, :, None, :]
 
         selected_travel_matrices = travel_time_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
         # shape: (batch, pomo, problem+1)
         selected_travel_times = selected_travel_matrices.gather(dim=2, index=gathering_index).squeeze(dim=2)
         # shape: (batch, pomo)
-        selected_price_matrices = price_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
-        selected_prices = selected_price_matrices.gather(dim=2, index=gathering_index).squeeze(dim=2)
 
         gathering_index2 = selected[:, :, None].expand(-1, -1, 2)
         gathering_index2 = gathering_index2[:, :, None, :]
@@ -331,7 +333,8 @@ class ESPRCTWEnv:
         self.ninf_mask[cant_reach_depot] = float('-inf')
         # shape: (batch, pomo, problem+1)
 
-        self.current_prices = self.current_prices + selected_prices
+        gain = selected_travel_times-selected_duals
+        self.current_prices = self.current_prices + gain
 
         newly_finished = self.at_the_depot
         # shape: (batch, pomo)
@@ -342,18 +345,18 @@ class ESPRCTWEnv:
         self.ninf_mask[:, :, :][self.finished] = float('-inf')
         self.ninf_mask[:, :, 0][self.finished] = 0
 
+        # Consider updating state values only for episodes that have not terminated.
         self.step_state.selected_count = self.selected_count
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
         self.step_state.current_times = self.current_times
-        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
         # returning values
         done = self.finished.all()
         if done:
-            reward = self.current_prices
+            reward = self.current_prices*-1
         else:
             reward = None
 

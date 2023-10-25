@@ -87,13 +87,14 @@ class ESPRCTWTrainer:
             img_save_interval = self.trainer_params['logging']['img_save_interval']
 
             # Save latest images, every epoch
+            '''
             if epoch > 1:
                 self.logger.info("Saving log_image")
                 image_prefix = '{}/latest'.format(self.result_folder)
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_1'],
                                     self.result_log, labels=['train_score'])
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_2'],
-                                    self.result_log, labels=['train_loss'])
+                                    self.result_log, labels=['train_loss'])'''
 
             # Save Model
             if all_done or (epoch % model_save_interval) == 0:
@@ -108,12 +109,13 @@ class ESPRCTWTrainer:
                 torch.save(checkpoint_dict, '{}/checkpoint-{}.pt'.format(self.result_folder, epoch))
 
             # Save Image
+            '''
             if all_done or (epoch % img_save_interval) == 0:
                 image_prefix = '{}/img/checkpoint-{}'.format(self.result_folder, epoch)
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_1'],
                                     self.result_log, labels=['train_score'])
                 util_save_log_image_with_label(image_prefix, self.trainer_params['logging']['log_image_params_2'],
-                                    self.result_log, labels=['train_loss'])
+                                    self.result_log, labels=['train_loss'])'''
 
             # All-done announcement
             if all_done:

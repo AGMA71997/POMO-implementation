@@ -2,9 +2,8 @@
 # Machine Environment Config
 
 DEBUG_MODE = False
-USE_CUDA = not DEBUG_MODE
+USE_CUDA = False  # not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
-
 
 ##########################################################################################
 # Path Config
@@ -16,7 +15,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, "..")  # for problem_def
 sys.path.insert(0, "../..")  # for utils
 
-
 ##########################################################################################
 # import
 
@@ -24,7 +22,6 @@ import logging
 from utils.utils import create_logger, copy_all_src
 
 from TSPTester import TSPTester as Tester
-
 
 ##########################################################################################
 # parameters
@@ -36,7 +33,7 @@ env_params = {
 
 model_params = {
     'embedding_dim': 128,
-    'sqrt_embedding_dim': 128**(1/2),
+    'sqrt_embedding_dim': 128 ** (1 / 2),
     'encoder_layer_num': 6,
     'qkv_dim': 16,
     'head_num': 8,
@@ -52,7 +49,7 @@ tester_params = {
         'path': './result/saved_tsp20_model',  # directory path of pre-trained model and log files saved.
         'epoch': 510,  # epoch version of pre-trained model to laod.
     },
-    'test_episodes': 100*1000,
+    'test_episodes': 100 * 1000,
     'test_batch_size': 10000,
     'augmentation_enable': True,
     'aug_factor': 8,
@@ -67,6 +64,7 @@ logger_params = {
         'filename': 'run_log'
     }
 }
+
 
 ##########################################################################################
 # main
@@ -97,7 +95,6 @@ def _print_config():
     logger.info('DEBUG_MODE: {}'.format(DEBUG_MODE))
     logger.info('USE_CUDA: {}, CUDA_DEVICE_NUM: {}'.format(USE_CUDA, CUDA_DEVICE_NUM))
     [logger.info(g_key + "{}".format(globals()[g_key])) for g_key in globals().keys() if g_key.endswith('params')]
-
 
 
 ##########################################################################################
