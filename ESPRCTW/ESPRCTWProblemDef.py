@@ -21,6 +21,7 @@ def get_random_problems(batch_size, problem_size):
     node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
     # shape: (batch, problem)
     depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
+    # shape: (batch, 1, 2)
     tw_scalar = 18
     time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar)) / float(tw_scalar)
     service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)

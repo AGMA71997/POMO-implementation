@@ -1,4 +1,3 @@
-
 import torch
 from logging import getLogger
 
@@ -56,15 +55,18 @@ class ESPRCTWTrainer:
             self.start_epoch = 1 + model_load['epoch']
             self.result_log.set_raw_data(checkpoint['result_log'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            self.scheduler.last_epoch = model_load['epoch']-1
+            self.scheduler.last_epoch = model_load['epoch'] - 1
             self.logger.info('Saved Model Loaded !!')
+
+        file="Processed_Data_for_POMO\ESPRCTW_Data_" + str(env_params['problem_size'])
+        self.env.use_saved_problems(file, torch.device('cpu'))
 
         # utility
         self.time_estimator = TimeEstimator()
 
     def run(self):
         self.time_estimator.reset(self.start_epoch)
-        for epoch in range(self.start_epoch, self.trainer_params['epochs']+1):
+        for epoch in range(self.start_epoch, self.trainer_params['epochs'] + 1):
             self.logger.info('=================================================================')
 
             # LR Decay

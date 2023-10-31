@@ -17,6 +17,7 @@ class Reset_State:
     service_times: torch.Tensor = None
     travel_times: torch.Tensor = None
     depot_time_window: torch.Tensor = None
+    forbidden_edges: torch.Tensor = None  # Configure forbidden edges
 
 
 @dataclass
@@ -58,7 +59,7 @@ class ESPRCTWEnv:
 
         # Const @Load_Problem
         ####################################
-        self.batch_size = 2
+        self.batch_size = None
         self.BATCH_IDX = None
         self.POMO_IDX = None
         # IDX.shape: (batch, pomo)
@@ -333,7 +334,7 @@ class ESPRCTWEnv:
         self.ninf_mask[cant_reach_depot] = float('-inf')
         # shape: (batch, pomo, problem+1)
 
-        gain = selected_travel_times-selected_duals
+        gain = selected_travel_times - selected_duals
         self.current_prices = self.current_prices + gain
 
         newly_finished = self.at_the_depot
@@ -356,7 +357,7 @@ class ESPRCTWEnv:
         # returning values
         done = self.finished.all()
         if done:
-            reward = self.current_prices*-1
+            reward = self.current_prices * -1
         else:
             reward = None
 
