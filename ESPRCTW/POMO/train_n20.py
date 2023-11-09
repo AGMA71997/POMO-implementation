@@ -59,6 +59,7 @@ trainer_params = {
     'epochs': 20,
     'train_episodes': 128,
     'train_batch_size': 64,
+    'use_saved_data': True,
     'prev_model_path': None,
     'logging': {
         'model_save_interval': 10,

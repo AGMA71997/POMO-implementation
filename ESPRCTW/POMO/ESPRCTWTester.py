@@ -21,6 +21,10 @@ class ESPRCTWTester:
         self.model_params = model_params
         self.tester_params = tester_params
 
+        file = "config.json"
+        with open(file, 'r') as f:
+            config = json.load(f)
+
         # result folder, logger
         self.logger = getLogger(name='trainer')
         self.result_folder = get_result_folder()
@@ -47,6 +51,10 @@ class ESPRCTWTester:
         checkpoint_fullname = '{path}/checkpoint-{epoch}.pt'.format(**model_load)
         checkpoint = torch.load(checkpoint_fullname, map_location=device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
+
+        if self.tester_params['use_saved_data']:
+            file = config["POMO Data"] + "/ESPRCTW_Data_" + str(env_params['problem_size'])
+            self.env.use_saved_problems(file, torch.device('cpu'))
 
         # utility
         self.time_estimator = TimeEstimator()

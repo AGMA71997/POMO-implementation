@@ -15,6 +15,8 @@ def get_random_problems(batch_size, problem_size):
         demand_scaler = 40
     elif problem_size == 100:
         demand_scaler = 50
+    elif problem_size == 300:
+        demand_scaler = 100
     else:
         raise NotImplementedError
 
@@ -27,12 +29,14 @@ def get_random_problems(batch_size, problem_size):
     service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)
     travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy) / float(tw_scalar)
     duals = create_duals(batch_size, problem_size)
+    prices = create_price(travel_times, duals)
 
     travel_times = torch.tensor(travel_times)
+    prices = torch.tensor(prices, dtype=torch.float32)
     duals = torch.tensor(duals, dtype=torch.float32) / float(duals.max())
     service_times = torch.tensor(service_times, dtype=torch.float32)
 
-    return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times
+    return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
 
 
 def create_service_times(batch_size, problem_size):
@@ -61,6 +65,21 @@ def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
                         time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - node_coors[x, j - 1, :])
 
     return time_matrix * 2
+
+
+def create_price(time_matrix, duals):
+    batch_size, dim_1, dim_2 = time_matrix.shape
+    prices = numpy.zeros((batch_size, dim_1, dim_2))
+    for x in range(batch_size):
+        for j in range(dim_1):
+            if j != 0:
+                prices[x, j, :] = (time_matrix[x, j, :] - duals[x, j - 1])*-1
+            else:
+                prices[x, j, :] = time_matrix[x, j, :]
+        min_val = numpy.min(prices[x, :, :])
+        max_val = numpy.max(prices[x, :, :])
+        prices[x, :, :] = (prices[x, :, :] - min_val) / (max_val - min_val)
+    return prices
 
 
 def create_time_windows(batch_size, problem_size, tw_scalar, minimum_margin=2):

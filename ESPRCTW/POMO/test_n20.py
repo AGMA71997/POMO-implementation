@@ -54,6 +54,7 @@ tester_params = {
     },
     'test_episodes': 1000,
     'test_batch_size': 1000,
+    'use_saved_data': True,
     'augmentation_enable': False,
     'aug_factor': 8,
     'aug_batch_size': 1000,

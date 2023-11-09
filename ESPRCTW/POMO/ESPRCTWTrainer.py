@@ -23,6 +23,10 @@ class ESPRCTWTrainer:
         self.optimizer_params = optimizer_params
         self.trainer_params = trainer_params
 
+        file = "config.json"
+        with open(file, 'r') as f:
+            config = json.load(f)
+
         # result folder, logger
         self.logger = getLogger(name='trainer')
         self.result_folder = get_result_folder()
@@ -58,8 +62,9 @@ class ESPRCTWTrainer:
             self.scheduler.last_epoch = model_load['epoch'] - 1
             self.logger.info('Saved Model Loaded !!')
 
-        file="Processed_Data_for_POMO\ESPRCTW_Data_" + str(env_params['problem_size'])
-        self.env.use_saved_problems(file, torch.device('cpu'))
+        if self.trainer_params['use_saved_data']:
+            file = config["POMO Data"] + "/ESPRCTW_Data_" + str(env_params['problem_size'])
+            self.env.use_saved_problems(file, torch.device('cpu'))
 
         # utility
         self.time_estimator = TimeEstimator()
