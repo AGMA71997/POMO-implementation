@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import torch
+import numpy
 
 from ESPRCTWProblemDef import get_random_problems, augment_xy_data_by_8_fold
 
@@ -118,6 +119,66 @@ class ESPRCTWEnv:
         self.saved_travel_times = loaded_dict['travel_times']
         self.saved_prices = loaded_dict['prices']
         self.saved_index = 0
+
+    def declare_problem(self, coords, demands, time_windows,
+                        duals, service_times, travel_times, prices, vehicle_capacity):
+
+        demands = demands / vehicle_capacity
+        duals.insert(0, 0)
+        duals = numpy.array(duals)
+        duals = duals / max(duals)
+        service_times = service_times / time_windows[0, 1]
+        travel_times = travel_times / time_windows[0, 1]
+        time_windows = time_windows / time_windows[0, 1]
+        min_val = numpy.min(prices)
+        max_val = numpy.max(prices)
+        prices = (prices - min_val) / (max_val - min_val)
+
+        self.batch_size = 1
+        # Reshape them for batch index
+
+        self.depot_node_xy = torch.tensor(coords, dtype=torch.float32)
+        self.depot_node_demand = torch.tensor(demands, dtype=torch.float32)
+        self.depot_node_duals = torch.tensor(duals, dtype=torch.float32)
+        self.depot_node_time_windows = torch.tensor(time_windows, dtype=torch.float32)
+        self.depot_node_service_time = torch.tensor(service_times, dtype=torch.float32)
+        self.travel_times = torch.tensor(travel_times, dtype=torch.float32)
+        self.prices = torch.tensor(prices, dtype=torch.float32)
+
+        self.depot_node_xy = self.depot_node_xy[None, :, :].expand(self.batch_size, -1, -1)
+        # shape: (batch,problem+1, 2)
+        self.depot_node_demand = self.depot_node_demand[None, :].expand(self.batch_size, -1)
+        # shape: (batch,problem+1)
+        self.depot_node_duals = self.depot_node_duals[None, :].expand(self.batch_size, -1)
+        # shape: (batch,problem+1)
+        self.depot_node_time_windows = self.depot_node_time_windows[None, :, :].expand(self.batch_size, -1, -1)
+        # shape: (batch,problem+1,2)
+        self.depot_node_service_time = self.depot_node_service_time[None, :].expand(self.batch_size, -1)
+        # shape: (batch,problem+1)
+        self.travel_times = self.travel_times[None, :, :].expand(self.batch_size, -1, -1)
+        # shape: (batch,problem+1,problem+1)
+        self.prices = self.prices[None, :, :].expand(self.batch_size, -1, -1)
+        # shape: (batch,problem+1,problem+1)
+
+        self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.pomo_size)
+        self.POMO_IDX = torch.arange(self.pomo_size)[None, :].expand(self.batch_size, self.pomo_size)
+
+        depot_xy = self.depot_node_xy[:, 0, :]
+        depot_xy = depot_xy[:, None, :].expand(-1, 1, -1)
+        depot_tw = self.depot_node_time_windows[:, 0, :]
+        depot_tw = depot_tw[:, None, :].expand(-1, 1, -1)
+        self.reset_state.depot_xy = depot_xy
+        self.reset_state.node_xy = self.depot_node_xy[:, 1:, :]
+        self.reset_state.node_demand = self.depot_node_demand[:, 1:]
+        self.reset_state.time_windows = self.depot_node_time_windows[:, 1:, :]
+        self.reset_state.depot_time_window = depot_tw
+        self.reset_state.travel_times = travel_times
+        self.reset_state.prices = prices
+        self.reset_state.duals = self.depot_node_duals[:, 1:]
+        self.reset_state.service_times = self.depot_node_service_time[:, 1:]
+
+        self.step_state.BATCH_IDX = self.BATCH_IDX
+        self.step_state.POMO_IDX = self.POMO_IDX
 
     def load_problems(self, batch_size, aug_factor=1):
         self.batch_size = batch_size

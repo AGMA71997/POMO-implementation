@@ -1,4 +1,3 @@
-
 import torch
 
 import os
@@ -28,7 +27,6 @@ class ESPRCTWTester:
         # result folder, logger
         self.logger = getLogger(name='trainer')
         self.result_folder = get_result_folder()
-
 
         # cuda
         USE_CUDA = self.tester_params['use_cuda']
@@ -114,10 +112,23 @@ class ESPRCTWTester:
         # POMO Rollout
         ###############################################
         state, reward, done = self.env.pre_step()
+        # decisions = torch.empty((0, self.env.batch_size, self.env.pomo_size), dtype=torch.float32)
         while not done:
             selected, _ = self.model(state)
             # shape: (batch, pomo)
+            # decisions = torch.cat((decisions, selected[None, :, :]), dim=0)
             state, reward, done = self.env.step(selected)
+
+        '''best_rewards_indexes = reward.argmax(dim=1)
+        best_rewards = reward.max(dim=1)
+        for x in range(len(decisions)):
+            decision_list = []
+            for y in range(len(decisions[0, :, :])):
+                decision_list.append(int(decisions[x, y, best_rewards_indexes[y]]))
+            print(decision_list)
+            print("--------------")
+        print("with rewards: ")
+        print(best_rewards)'''
 
         # Return
         ###############################################

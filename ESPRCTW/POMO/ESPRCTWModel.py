@@ -30,7 +30,8 @@ class ESPRCTWModel(nn.Module):
         node_time_windows = reset_state.time_windows
         # shape: (batch, problem, 2)
 
-        node_features = torch.cat((node_xy, node_time_windows, node_demand[:, :, None], duals[:, :, None], service_times[:, :, None]), dim=2)
+        node_features = torch.cat(
+            (node_xy, node_time_windows, node_demand[:, :, None], duals[:, :, None], service_times[:, :, None]), dim=2)
         # shape: (batch, problem, 7)
 
         depot_features = torch.cat((depot_xy, depot_time_window), dim=2)
@@ -65,7 +66,7 @@ class ESPRCTWModel(nn.Module):
         else:
             encoded_last_node = _get_encoding(self.encoded_nodes, state.current_node)
             # shape: (batch, pomo, embedding)
-            probs = self.decoder(encoded_last_node, state.load, ninf_mask=state.ninf_mask)
+            probs = self.decoder(encoded_last_node, state.load, state.current_times, ninf_mask=state.ninf_mask)
             # shape: (batch, pomo, problem+1)
 
             if self.training or self.model_params['eval_type'] == 'softmax':
@@ -192,7 +193,7 @@ class ESPRCTW_Decoder(nn.Module):
 
         # self.Wq_1 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         # self.Wq_2 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
-        self.Wq_last = nn.Linear(embedding_dim + 1, head_num * qkv_dim, bias=False)
+        self.Wq_last = nn.Linear(embedding_dim + 2, head_num * qkv_dim, bias=False)
         self.Wk = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         self.Wv = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
 
@@ -226,17 +227,18 @@ class ESPRCTW_Decoder(nn.Module):
         self.q2 = reshape_by_heads(self.Wq_2(encoded_q2), head_num=head_num)
         # shape: (batch, head_num, n, qkv_dim)
 
-    def forward(self, encoded_last_node, load, ninf_mask):
+    def forward(self, encoded_last_node, load, current_time, ninf_mask):
         # encoded_last_node.shape: (batch, pomo, embedding)
         # load.shape: (batch, pomo)
+        # current_time.shape (batch, pomo)
         # ninf_mask.shape: (batch, pomo, problem)
 
         head_num = self.model_params['head_num']
 
         #  Multi-Head Attention
         #######################################################
-        input_cat = torch.cat((encoded_last_node, load[:, :, None]), dim=2)
-        # shape = (batch, group, EMBEDDING_DIM+1)
+        input_cat = torch.cat((encoded_last_node, load[:, :, None], current_time[:, :, None]), dim=2)
+        # shape = (batch, group, EMBEDDING_DIM+2)
 
         q_last = reshape_by_heads(self.Wq_last(input_cat), head_num=head_num)
         # shape: (batch, head_num, pomo, qkv_dim)
