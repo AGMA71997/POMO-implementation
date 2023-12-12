@@ -31,7 +31,7 @@ def get_random_problems(batch_size, problem_size):
     duals = create_duals(batch_size, problem_size)
     prices = create_price(travel_times, duals)
 
-    travel_times = torch.tensor(travel_times)
+    travel_times = torch.tensor(travel_times, dtype=torch.float32)
     prices = torch.tensor(prices, dtype=torch.float32)
     duals = torch.tensor(duals, dtype=torch.float32) / float(duals.max())
     service_times = torch.tensor(service_times, dtype=torch.float32)
@@ -64,7 +64,7 @@ def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
                     else:
                         time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - node_coors[x, j - 1, :])
 
-    return time_matrix * 2
+    return time_matrix
 
 
 def create_price(time_matrix, duals):

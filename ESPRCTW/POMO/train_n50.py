@@ -27,7 +27,7 @@ from ESPRCTWTrainer import ESPRCTWTrainer as Trainer
 # parameters
 
 env_params = {
-    'problem_size': 20,
+    'problem_size': 50,
     'pomo_size': 20,
 }
 
