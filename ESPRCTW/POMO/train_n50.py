@@ -56,8 +56,8 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 500,
-    'train_episodes': 1000,
+    'epochs': 100,
+    'train_episodes': 10000,
     'train_batch_size': 64,
     'use_saved_data': False,
     'prev_model_path': None,
@@ -66,7 +66,7 @@ trainer_params = {
         'img_save_interval': 10,
         'log_image_params_1': {
             'json_foldername': 'log_image_style',
-            'filename': 'style_esprctw_20.json'
+            'filename': 'style_esprctw_50.json'
         },
         'log_image_params_2': {
             'json_foldername': 'log_image_style',
@@ -83,7 +83,7 @@ trainer_params = {
 
 logger_params = {
     'log_file': {
-        'desc': 'train_esprctw_n20',
+        'desc': 'train_esprctw_n50',
         'filename': 'run_log'
     }
 }

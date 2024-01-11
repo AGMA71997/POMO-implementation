@@ -33,7 +33,7 @@ def get_random_problems(batch_size, problem_size):
 
     travel_times = torch.tensor(travel_times, dtype=torch.float32)
     prices = torch.tensor(prices, dtype=torch.float32)
-    duals = torch.tensor(duals, dtype=torch.float32) / float(duals.max())
+    duals = torch.tensor(duals, dtype=torch.float32) / float(10)
     service_times = torch.tensor(service_times, dtype=torch.float32)
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
@@ -73,12 +73,12 @@ def create_price(time_matrix, duals):
     for x in range(batch_size):
         for j in range(dim_1):
             if j != 0:
-                prices[x, j, :] = (time_matrix[x, j, :] - duals[x, j - 1])*-1
+                prices[x, j, :] = (time_matrix[x, j, :] - duals[x, j - 1]) * -1
             else:
                 prices[x, j, :] = time_matrix[x, j, :]
         min_val = numpy.min(prices[x, :, :])
         max_val = numpy.max(prices[x, :, :])
-        prices[x, :, :] = (prices[x, :, :] - min_val) / (max_val - min_val)
+        prices[x, :, :] = prices[x, :, :] / max(abs(max_val), abs(min_val))
     return prices
 
 

@@ -46,12 +46,12 @@ tester_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
     'model_load': {
-        'path': './result/saved_esprctw20_model',  # directory path of pre-trained model and log files saved.
-        'epoch': 30,  # epoch version of pre-trained model to laod.
+        'path': './result/saved_esprctw20_model_artificial_duals',  # directory path of pre-trained model and log files saved.
+        'epoch': 60,  # epoch version of pre-trained model to laod.
     },
     'test_episodes': 10,
     'test_batch_size': 10,
-    'use_saved_data': True,
+    'use_saved_data': False,
     'augmentation_enable': False,
     'aug_factor': 8,
     'aug_batch_size': 1000,

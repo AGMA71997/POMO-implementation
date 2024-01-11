@@ -126,13 +126,13 @@ class ESPRCTWEnv:
         demands = demands / vehicle_capacity
         duals.insert(0, 0)
         duals = numpy.array(duals)
-        duals = duals / max(duals)
+        duals = duals / 10
         service_times = service_times / time_windows[0, 1]
         travel_times = travel_times / time_windows[0, 1]
         time_windows = time_windows / time_windows[0, 1]
         min_val = numpy.min(prices)
         max_val = numpy.max(prices)
-        prices = (prices - min_val) / (max_val - min_val)
+        prices = prices / max(abs(max_val), abs(min_val))
 
         self.batch_size = 1
         # Reshape them for batch index
