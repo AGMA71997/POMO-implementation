@@ -63,7 +63,12 @@ class ESPRCTWTrainer:
             self.logger.info('Saved Model Loaded !!')
 
         if self.trainer_params['use_saved_data']:
-            file = config["POMO Data"] + "/ESPRCTW_Data_" + str(env_params['problem_size'])
+            if self.trainer_params['heuristic']:
+                file = config["POMO Data Heuristic"] + "/" + str(env_params['problem_size']) + "/ESPRCTW_Data_" + str(
+                    env_params['problem_size'])
+            else:
+                file = config["POMO Data"] + "/" + str(env_params['problem_size']) + "/ESPRCTW_Data_" + str(
+                    env_params['problem_size'])
             self.env.use_saved_problems(file, torch.device('cpu'))
 
         # utility

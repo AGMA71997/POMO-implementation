@@ -125,8 +125,9 @@ class ESPRCTWEnv:
 
         demands = demands / vehicle_capacity
         duals.insert(0, 0)
+        max_dual = max(duals)
         duals = numpy.array(duals)
-        duals = duals / 10
+        duals = duals / max_dual
         service_times = service_times / time_windows[0, 1]
         travel_times = travel_times / time_windows[0, 1]
         time_windows = time_windows / time_windows[0, 1]

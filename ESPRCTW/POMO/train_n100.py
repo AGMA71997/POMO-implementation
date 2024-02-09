@@ -56,10 +56,11 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 20,
-    'train_episodes': 200,
+    'epochs': 30,
+    'train_episodes': 235,
     'train_batch_size': 64,
-    'use_saved_data': False,
+    'use_saved_data': True,
+    'heuristic': True,
     'prev_model_path': None,
     'logging': {
         'model_save_interval': 500,
