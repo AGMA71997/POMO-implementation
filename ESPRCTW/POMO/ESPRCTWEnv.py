@@ -37,8 +37,6 @@ class Step_State:
     finished: torch.Tensor = None
     # shape: (batch, pomo)
     current_times: torch.Tensor = None
-    current_prices: torch.Tensor = None
-
 
 class ESPRCTWEnv:
     def __init__(self, **env_params):
@@ -127,7 +125,6 @@ class ESPRCTWEnv:
         if solomon:
             coords = coords / 100
         demands = demands / vehicle_capacity
-        duals.insert(0, 0)
         duals = numpy.array(duals)
         duals = duals / max_dual
         service_times = service_times / time_windows[0, 1]
@@ -280,7 +277,6 @@ class ESPRCTWEnv:
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
         self.step_state.current_times = self.current_times
-        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
@@ -427,7 +423,6 @@ class ESPRCTWEnv:
         self.step_state.selected_count = self.selected_count
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
-        self.step_state.current_prices = self.current_prices
         self.step_state.current_times = self.current_times
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
