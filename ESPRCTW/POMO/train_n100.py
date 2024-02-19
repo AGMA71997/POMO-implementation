@@ -56,15 +56,16 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 30,
+    'epochs': 100,
     'train_episodes': 235,
+    'data_count': 7050,
     'train_batch_size': 64,
     'use_saved_data': True,
     'heuristic': True,
     'prev_model_path': None,
     'logging': {
-        'model_save_interval': 500,
-        'img_save_interval': 500,
+        'model_save_interval': 10,
+        'img_save_interval': 10,
         'log_image_params_1': {
             'json_foldername': 'log_image_style',
             'filename': 'style_esprctw_100.json'
@@ -75,9 +76,9 @@ trainer_params = {
         },
     },
     'model_load': {
-        'enable': False,  # enable loading pre-trained model
-        # 'path': './result/saved_CVRP20_model',  # directory path of pre-trained model and log files saved.
-        # 'epoch': 2000,  # epoch version of pre-trained model to laod.
+        'enable': True,  # enable loading pre-trained model
+        'path': './result/saved_esprctw100_model_heuristic_data',  # directory path of pre-trained model and log files saved.
+        'epoch': 30,  # epoch version of pre-trained model to laod.
 
     }
 }
