@@ -37,6 +37,7 @@ class Step_State:
     finished: torch.Tensor = None
     # shape: (batch, pomo)
     current_times: torch.Tensor = None
+    current_prices: torch.Tensor = None
 
 class ESPRCTWEnv:
     def __init__(self, **env_params):
@@ -83,14 +84,14 @@ class ESPRCTWEnv:
         # shape: (batch, pomo)
         self.selected_node_list = None
         # shape: (batch, pomo, 0~)
-        self.current_times = None
-        self.current_prices = None
 
         # Dynamic-2
         ####################################
         self.at_the_depot = None
         # shape: (batch, pomo)
         self.load = None
+        self.current_times = None
+        self.current_prices = None
         # shape: (batch, pomo)
         self.visited_ninf_flag = None
         # shape: (batch, pomo, problem+1)
@@ -277,6 +278,7 @@ class ESPRCTWEnv:
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
         self.step_state.current_times = self.current_times
+        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
@@ -424,6 +426,7 @@ class ESPRCTWEnv:
         self.step_state.load = self.load
         self.step_state.current_node = self.current_node
         self.step_state.current_times = self.current_times
+        self.step_state.current_prices = self.current_prices
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
 
