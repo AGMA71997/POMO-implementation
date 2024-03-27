@@ -31,7 +31,7 @@ class ESPRCTWModel(nn.Module):
         # shape: (batch, problem, 2)
 
         node_features = torch.cat(
-            (node_xy, node_time_windows, node_demand[:, :, None], duals[:, :, None], service_times[:, :, None]), dim=2)
+            (node_xy, node_time_windows, duals[:, :, None]), dim=2)
         # shape: (batch, problem, 7)
 
         depot_features = torch.cat((depot_xy, depot_time_window), dim=2)
@@ -66,7 +66,7 @@ class ESPRCTWModel(nn.Module):
         else:
             encoded_last_node = _get_encoding(self.encoded_nodes, state.current_node)
             # shape: (batch, pomo, embedding)
-            probs = self.decoder(encoded_last_node, state.load, state.current_times, state.current_prices, ninf_mask=state.ninf_mask)
+            probs = self.decoder(encoded_last_node, state.current_times, state.current_prices, ninf_mask=state.ninf_mask)
             # shape: (batch, pomo, problem+1)
 
             if self.training or self.model_params['eval_type'] == 'softmax':
@@ -117,7 +117,7 @@ class ESPRCTW_Encoder(nn.Module):
         encoder_layer_num = self.model_params['encoder_layer_num']
 
         self.embedding_depot = nn.Linear(4, embedding_dim)
-        self.embedding_node = nn.Linear(7, embedding_dim)
+        self.embedding_node = nn.Linear(5, embedding_dim)
         self.layers = nn.ModuleList([EncoderLayer(**model_params) for _ in range(encoder_layer_num)])
 
     def forward(self, depot_features, node_features):
@@ -193,7 +193,7 @@ class ESPRCTW_Decoder(nn.Module):
 
         # self.Wq_1 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         # self.Wq_2 = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
-        self.Wq_last = nn.Linear(embedding_dim + 3, head_num * qkv_dim, bias=False)
+        self.Wq_last = nn.Linear(embedding_dim + 2, head_num * qkv_dim, bias=False)
         self.Wk = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
         self.Wv = nn.Linear(embedding_dim, head_num * qkv_dim, bias=False)
 
@@ -237,7 +237,7 @@ class ESPRCTW_Decoder(nn.Module):
 
         #  Multi-Head Attention
         #######################################################
-        input_cat = torch.cat((encoded_last_node, load[:, :, None], current_time[:, :, None], current_price[:, :, None]), dim=2)
+        input_cat = torch.cat((encoded_last_node, current_time[:, :, None], current_price[:, :, None]), dim=2)
         # shape = (batch, group, EMBEDDING_DIM+2)
 
         q_last = reshape_by_heads(self.Wq_last(input_cat), head_num=head_num)
