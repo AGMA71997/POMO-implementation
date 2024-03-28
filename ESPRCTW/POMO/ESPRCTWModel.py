@@ -227,7 +227,7 @@ class ESPRCTW_Decoder(nn.Module):
         self.q2 = reshape_by_heads(self.Wq_2(encoded_q2), head_num=head_num)
         # shape: (batch, head_num, n, qkv_dim)
 
-    def forward(self, encoded_last_node, load, current_time, current_price, ninf_mask):
+    def forward(self, encoded_last_node, current_time, current_price, ninf_mask):
         # encoded_last_node.shape: (batch, pomo, embedding)
         # load.shape: (batch, pomo)
         # current_time.shape (batch, pomo)

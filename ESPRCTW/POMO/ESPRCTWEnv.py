@@ -124,13 +124,13 @@ class ESPRCTWEnv:
                         duals, service_times, travel_times, prices, vehicle_capacity, max_dual, solomon):
 
         if solomon:
-            coords = coords / 100
-        demands = demands / vehicle_capacity
+            coords = coords #/ 100
+        demands = demands #/ vehicle_capacity
         duals = numpy.array(duals)
-        duals = duals / max_dual
-        service_times = service_times / time_windows[0, 1]
-        travel_times = travel_times / time_windows[0, 1]
-        time_windows = time_windows / time_windows[0, 1]
+        duals = duals #/ max_dual
+        service_times = service_times #/ time_windows[0, 1]
+        travel_times = travel_times #/ time_windows[0, 1]
+        time_windows = time_windows #/ time_windows[0, 1]
         min_val = numpy.min(prices)
         max_val = numpy.max(prices)
         prices = prices / max(abs(max_val), abs(min_val))
