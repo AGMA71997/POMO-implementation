@@ -175,8 +175,8 @@ class ESPRCTWTrainer:
         ###############################################
         self.model.train()
         self.env.load_problems(batch_size)
-        if self.env.saved_index >= self.trainer_params['data_count']:
-            self.env.saved_index = 0
+        '''if self.env.saved_index >= self.trainer_params['data_count']:
+            self.env.saved_index = 0'''
         reset_state, _, _ = self.env.reset()
         self.model.pre_forward(reset_state)
 

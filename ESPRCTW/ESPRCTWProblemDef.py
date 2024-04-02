@@ -1,3 +1,5 @@
+import random
+
 import torch
 import numpy
 
@@ -33,7 +35,7 @@ def get_random_problems(batch_size, problem_size):
 
     travel_times = torch.tensor(travel_times, dtype=torch.float32)
     prices = torch.tensor(prices, dtype=torch.float32)
-    duals = torch.tensor(duals, dtype=torch.float32) / float(10)
+    duals = torch.tensor(duals, dtype=torch.float32)
     service_times = torch.tensor(service_times, dtype=torch.float32)
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
@@ -47,7 +49,13 @@ def create_service_times(batch_size, problem_size):
 
 
 def create_duals(batch_size, problem_size):
-    duals = numpy.random.uniform(low=0, high=7, size=(batch_size, problem_size))
+    duals = numpy.zeros((batch_size, problem_size))
+    for x in range(batch_size):
+        non_zeros = numpy.random.randint(5, 101)
+        indices = list(range(problem_size))
+        chosen = random.sample(indices, non_zeros)
+        for index in chosen:
+            duals[x, index] = numpy.random.uniform(low=0, high=0.35)
     return duals
 
 

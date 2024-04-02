@@ -56,12 +56,12 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 100,
-    'train_episodes': 235,
-    'data_count': 7050,
+    'epochs': 500,
+    'train_episodes': 10000,
+    # 'data_count': 7050,
     'train_batch_size': 64,
-    'use_saved_data': True,
-    'heuristic': True,
+    'use_saved_data': False,
+    # 'heuristic': True,
     'prev_model_path': None,
     'logging': {
         'model_save_interval': 10,
@@ -76,9 +76,10 @@ trainer_params = {
         },
     },
     'model_load': {
-        'enable': True,  # enable loading pre-trained model
-        'path': './result/saved_esprctw100_model_heuristic_data',  # directory path of pre-trained model and log files saved.
-        'epoch': 30,  # epoch version of pre-trained model to laod.
+        'enable': False,  # enable loading pre-trained model
+        # 'path': './result/saved_esprctw100_model_heuristic_data',
+        # directory path of pre-trained model and log files saved.
+        # 'epoch': 30,  # epoch version of pre-trained model to laod.
 
     }
 }
