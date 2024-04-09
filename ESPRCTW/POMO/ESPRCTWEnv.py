@@ -122,13 +122,13 @@ class ESPRCTWEnv:
         self.saved_index = 0
 
     def declare_problem(self, coords, demands, time_windows,
-                        duals, service_times, travel_times, prices, vehicle_capacity, max_dual, solomon):
+                        duals, service_times, travel_times, prices, vehicle_capacity, solomon):
 
         if solomon:
             coords = coords / 100
         demands = demands / vehicle_capacity
         duals = numpy.array(duals)
-        duals = duals / max_dual
+        duals = duals / time_windows[0, 1]
         service_times = service_times / time_windows[0, 1]
         travel_times = travel_times / time_windows[0, 1]
         time_windows = time_windows / time_windows[0, 1]
@@ -442,17 +442,25 @@ class ESPRCTWEnv:
 
 
 def main():
+
     env_params = {
         'problem_size': 20,
         'pomo_size': 20,
     }
-    batch_size = 2
+    batch_size = 1
     env = ESPRCTWEnv(**env_params)
     env.load_problems(batch_size)
+    print(env.depot_node_demand)
+    print(env.depot_node_time_windows)
+    print(env.travel_times)
+    print(env.depot_node_service_time)
     env.reset()
-    for i in range(1):
+    for i in range(10):
         selected = torch.randint(1, 20, (batch_size, 20))
+        print(selected[:, 0])
         env.step(selected)
+        print(env.load[:, 0])
+        print(env.current_times[:, 0])
         # print(env.current_prices)
         # print(i)
 

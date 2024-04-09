@@ -30,12 +30,12 @@ def get_random_problems(batch_size, problem_size):
     time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar)) / float(tw_scalar)
     service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)
     travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy) / float(tw_scalar)
-    duals = create_duals(batch_size, problem_size,tw_scalar)
+    duals = create_duals(batch_size, problem_size, tw_scalar)
     prices = create_price(travel_times, duals)
 
     travel_times = torch.tensor(travel_times, dtype=torch.float32)
     prices = torch.tensor(prices, dtype=torch.float32)
-    duals = torch.tensor(duals/tw_scalar, dtype=torch.float32)
+    duals = torch.tensor(duals / tw_scalar, dtype=torch.float32)
     service_times = torch.tensor(service_times, dtype=torch.float32)
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
@@ -51,15 +51,17 @@ def create_service_times(batch_size, problem_size):
 def create_duals(batch_size, problem_size, tw_scaler):
     duals = numpy.zeros((batch_size, problem_size))
     for x in range(batch_size):
-        non_zeros = numpy.random.randint(5, 101)
+        non_zeros = numpy.random.randint(5, problem_size + 1)
         indices = list(range(problem_size))
         chosen = random.sample(indices, non_zeros)
         for index in chosen:
-            duals[x, index] = numpy.random.uniform(low=0, high=tw_scaler/2.5)
+            duals[x, index] = numpy.random.uniform(low=0, high=tw_scaler / 2.5)
     return duals
 
 
 def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
+    depot_coors = depot_coors.cpu()
+    node_coors = node_coors.cpu()
     time_matrix = numpy.zeros((batch_size, problem_size + 1, problem_size + 1))
     for x in range(batch_size):
         for i in range(problem_size + 1):
