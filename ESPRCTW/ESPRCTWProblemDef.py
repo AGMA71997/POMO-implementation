@@ -27,73 +27,68 @@ def get_random_problems(batch_size, problem_size):
     depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
     tw_scalar = 18
-    time_windows = torch.tensor(create_time_windows(batch_size, problem_size, tw_scalar)) / float(tw_scalar)
+    time_windows = create_time_windows(batch_size, problem_size, tw_scalar) / float(tw_scalar)
     service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)
     travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy) / float(tw_scalar)
-    duals = create_duals(batch_size, problem_size, tw_scalar)
+    duals = create_duals(batch_size, problem_size, tw_scalar)/float(tw_scalar)
     prices = create_price(travel_times, duals)
 
-    travel_times = torch.tensor(travel_times, dtype=torch.float32)
-    prices = torch.tensor(prices, dtype=torch.float32)
-    duals = torch.tensor(duals / tw_scalar, dtype=torch.float32)
-    service_times = torch.tensor(service_times, dtype=torch.float32)
+    # duals = torch.tensor(duals / tw_scalar, dtype=torch.float32)
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
 
 
 def create_service_times(batch_size, problem_size):
-    service_times = numpy.zeros((batch_size, problem_size))
+    service_times = torch.zeros(size=(batch_size, problem_size), dtype=torch.float32)
     for x in range(batch_size):
-        service_times[x, :] = numpy.random.uniform(0.2, 0.5, problem_size)
+        service_times[x, :] = 0.3*torch.rand(problem_size)+0.2
     return service_times
 
 
 def create_duals(batch_size, problem_size, tw_scaler):
-    duals = numpy.zeros((batch_size, problem_size))
+    duals = torch.zeros(size=(batch_size, problem_size), dtype=torch.float32)
     for x in range(batch_size):
         non_zeros = numpy.random.randint(5, problem_size + 1)
         indices = list(range(problem_size))
         chosen = random.sample(indices, non_zeros)
         for index in chosen:
-            duals[x, index] = numpy.random.uniform(low=0, high=tw_scaler / 2.5)
+            duals[x, index] = (tw_scaler / 2.5)*torch.rand(1)
     return duals
 
 
 def create_time_matrix(batch_size, problem_size, node_coors, depot_coors):
-    depot_coors = depot_coors.cpu()
-    node_coors = node_coors.cpu()
-    time_matrix = numpy.zeros((batch_size, problem_size + 1, problem_size + 1))
+    time_matrix = torch.zeros(size=(batch_size, problem_size + 1, problem_size + 1), dtype=torch.float32)
     for x in range(batch_size):
         for i in range(problem_size + 1):
             for j in range(problem_size + 1):
                 if i != j:
                     if i == 0:
-                        time_matrix[x, i, j] = numpy.linalg.norm(depot_coors[x, i, :] - node_coors[x, j - 1, :])
+                        time_matrix[x, i, j] = torch.linalg.norm(depot_coors[x, i, :] - node_coors[x, j - 1, :])
                     elif j == 0:
-                        time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - depot_coors[x, j, :])
+                        time_matrix[x, i, j] = torch.linalg.norm(node_coors[x, i - 1, :] - depot_coors[x, j, :])
                     else:
-                        time_matrix[x, i, j] = numpy.linalg.norm(node_coors[x, i - 1, :] - node_coors[x, j - 1, :])
+                        time_matrix[x, i, j] = torch.linalg.norm(node_coors[x, i - 1, :] - node_coors[x, j - 1, :])
 
     return time_matrix
 
 
 def create_price(time_matrix, duals):
     batch_size, dim_1, dim_2 = time_matrix.shape
-    prices = numpy.zeros((batch_size, dim_1, dim_2))
+    prices = torch.zeros(size=(batch_size, dim_1, dim_2), dtype=torch.float32)
     for x in range(batch_size):
         for j in range(dim_1):
             if j != 0:
                 prices[x, j, :] = (time_matrix[x, j, :] - duals[x, j - 1]) * -1
             else:
                 prices[x, j, :] = time_matrix[x, j, :]
-        min_val = numpy.min(prices[x, :, :])
-        max_val = numpy.max(prices[x, :, :])
+        min_val = torch.min(prices[x, :, :])
+        max_val = torch.max(prices[x, :, :])
         prices[x, :, :] = prices[x, :, :] / max(abs(max_val), abs(min_val))
     return prices
 
 
 def create_time_windows(batch_size, problem_size, tw_scalar, minimum_margin=2):
-    time_windows = numpy.zeros((batch_size, problem_size, 2), dtype=int)
+    time_windows = torch.zeros(size=(batch_size, problem_size, 2), dtype=torch.float32)
     for x in range(batch_size):
         for i in range(problem_size):
             time_windows[x, i, 0] = numpy.random.randint(0, 10)
