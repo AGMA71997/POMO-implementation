@@ -4,6 +4,7 @@ import random
 import torch
 import numpy
 
+
 def get_random_problems(batch_size, problem_size):
     depot_xy = torch.rand(size=(batch_size, 1, 2))
     # shape: (batch, 1, 2)
@@ -30,7 +31,8 @@ def get_random_problems(batch_size, problem_size):
     time_windows = create_time_windows(batch_size, problem_size, tw_scalar) / float(tw_scalar)
     service_times = create_service_times(batch_size, problem_size) / float(tw_scalar)
     travel_times = create_time_matrix(batch_size, problem_size, node_xy, depot_xy) / float(tw_scalar)
-    duals = create_duals(batch_size, problem_size, tw_scalar) / float(tw_scalar)
+    # duals = create_duals(batch_size, problem_size, tw_scalar) / float(tw_scalar)
+    duals = create_duals_2(batch_size, problem_size, travel_times) / float(tw_scalar)
     prices = create_price(travel_times, duals)
 
     # duals = torch.tensor(duals / tw_scalar, dtype=torch.float32)
@@ -48,33 +50,43 @@ def create_service_times(batch_size, problem_size):
 def create_duals(batch_size, problem_size, tw_scaler):
     duals = torch.zeros(size=(batch_size, problem_size), dtype=torch.float32)
     for x in range(batch_size):
-        inst_dist=numpy.random.random_sample()
-        if inst_dist<0.1:
-            non_zeros = numpy.random.randint(4, math.ceil(problem_size/4))
+        inst_dist = numpy.random.random_sample()
+        if inst_dist < 0.1:
+            non_zeros = numpy.random.randint(4, math.ceil(problem_size / 4))
             upper_bound = 5
             dist = "uni"
-        elif inst_dist<0.35:
-            non_zeros = numpy.random.randint(math.ceil(problem_size/4), math.ceil(problem_size*3/4))
+        elif inst_dist < 0.35:
+            non_zeros = numpy.random.randint(math.ceil(problem_size / 4), math.ceil(problem_size * 3 / 4))
             upper_bound = 1.5
-            if non_zeros<0.4*problem_size:
+            if non_zeros < 0.4 * problem_size:
                 dist = "uni"
             else:
                 dist = "exp"
         else:
-            non_zeros = numpy.random.randint(math.ceil(problem_size*3/4), problem_size+1)
+            non_zeros = numpy.random.randint(math.ceil(problem_size * 3 / 4), problem_size + 1)
             upper_bound = 1
             dist = "exp"
-
 
         indices = list(range(problem_size))
         chosen = random.sample(indices, non_zeros)
         for index in chosen:
-            if dist=="uni":
-                duals[x, index] =  upper_bound* numpy.random.random_sample()
+            if dist == "uni":
+                duals[x, index] = upper_bound * numpy.random.random_sample()
             else:
-                duals[x, index] = min(numpy.random.exponential(0.33),upper_bound)
+                duals[x, index] = min(numpy.random.exponential(0.33), upper_bound)
 
-    print(duals[0:3, :])
+    return duals
+
+
+def create_duals_2(batch_size, problem_size, time_matrix):
+    duals = torch.zeros(size=(batch_size,), dtype=torch.float32)
+    for x in range(batch_size):
+        non_zeros = numpy.random.randint(3, problem_size + 1)
+        indices = list(range(problem_size))
+        chosen = random.sample(indices, non_zeros)
+        for index in chosen:
+            duals[x, index] = torch.max(time_matrix[:, index+1]) * 1.1 * numpy.random.random_sample()
+
     return duals
 
 
