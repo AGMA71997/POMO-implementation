@@ -152,11 +152,7 @@ class EncoderLayer(nn.Module):
         self.add_n_normalization_1 = AddAndInstanceNormalization(**model_params)
         self.feed_forward = FeedForward(**model_params)
         self.add_n_normalization_2 = AddAndInstanceNormalization(**model_params)
-
-        if self.model_params['use_fast_attention']:
-            self.attention_fn = fast_multi_head_attention
-        else:
-            self.attention_fn = multi_head_attention
+        self.attention_fn = multi_head_attention
 
     def forward(self, input1):
         # input1.shape: (batch, problem+1, embedding)
@@ -215,10 +211,7 @@ class CVRP_Decoder(nn.Module):
         self.poly_layer_1 = nn.Linear(embedding_dim + z_dim, poly_embedding_dim)
         self.poly_layer_2 = nn.Linear(poly_embedding_dim, embedding_dim)
 
-        if self.model_params['use_fast_attention']:
-            self.attention_fn = fast_multi_head_attention
-        else:
-            self.attention_fn = multi_head_attention
+        self.attention_fn = multi_head_attention
 
     def set_kv(self, encoded_nodes, z):
         # encoded_nodes.shape: (batch, problem+1, embedding)
@@ -376,25 +369,6 @@ def multi_head_attention(q, k, v, rank2_ninf_mask=None, rank3_ninf_mask=None):
 
     out_concat = out_transposed.reshape(batch_s, n, head_num * key_dim)
     # shape: (batch, n, head_num*key_dim)
-
-    return out_concat
-
-
-def fast_multi_head_attention(q, k, v, rank3_ninf_mask=None):
-    batch_s = q.size(0)
-    head_num = q.size(1)
-    n = q.size(2)
-    key_dim = q.size(3)
-    input_s = k.size(2)
-
-    mask = None
-    if rank3_ninf_mask is not None:
-        mask = rank3_ninf_mask[:, None, :, :]
-        mask = mask.expand(batch_s, head_num, n, input_s)
-
-    out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
-    out_transposed = out.transpose(1, 2)
-    out_concat = out_transposed.reshape(batch_s, n, head_num * key_dim)
 
     return out_concat
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import torch
 
-from CVRPTWProblemDef import augment_xy_data_by_8_fold, get_random_problems_from_data
+from CVRPTWProblemDef import augment_xy_data_by_8_fold, get_random_problems
 
 
 @dataclass
@@ -63,10 +63,8 @@ class CVRPTWEnv:
         # shape: (batch, problem+1)
         self.depot_node_tw = None
         # shape: (batch, problem+1)
-        self.distance_matrix = None
+        self.travel_times = None
         # shape: (batch, problem+1, problem+1)
-        self.capacity = None
-        self.grid_size = None
         self.service_t = None
 
         # Dynamic-1
@@ -106,8 +104,6 @@ class CVRPTWEnv:
         self.saved_depot_xy = loaded_dict['depot_xy'].float()
         self.saved_node_xy = loaded_dict['node_xy'].float()
         self.saved_node_demand = loaded_dict['node_demand'].float()
-        self.grid_size = loaded_dict['grid_size']
-        self.capacity = loaded_dict['capacity']
         if 'node_tw' in loaded_dict.keys():
             self.saved_node_tw = loaded_dict['node_tw']
             self.service_t = loaded_dict['service_duration']
@@ -118,23 +114,16 @@ class CVRPTWEnv:
         self.rollout_size = rollout_size
 
         if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand, _, node_tw, self.service_t, capacity = get_random_problems_dummy(batch_size,
+            depot_xy, node_xy, node_demand, node_tw, self.service_t, travel_times = get_random_problems(batch_size,
                                                                                                              self.problem_size)
             depot_xy = depot_xy.float()
             node_xy = node_xy.float()
             node_demand = node_demand.float()
-            self.grid_size = 1000
         else:
             depot_xy = self.saved_depot_xy[self.saved_index:self.saved_index + batch_size].to(device)
             node_xy = self.saved_node_xy[self.saved_index:self.saved_index + batch_size].to(device)
             node_demand = self.saved_node_demand[self.saved_index:self.saved_index + batch_size].to(device)
-            capacity = self.capacity[self.saved_index:self.saved_index + batch_size].to(device)
-
-            if self.saved_node_tw is not None:
-                node_tw = self.saved_node_tw[self.saved_index:self.saved_index + batch_size].to(device)
-            else:
-                depot_xy, node_xy, node_demand, _, node_tw, self.service_t = get_random_problems_from_data(
-                    depot_xy.to(device), node_xy.to(device), node_demand.to(device))
+            node_tw = self.saved_node_tw[self.saved_index:self.saved_index + batch_size].to(device)
 
             self.saved_index += batch_size
             if self.saved_index > self.saved_node_xy.shape[0] - batch_size:
@@ -145,10 +134,9 @@ class CVRPTWEnv:
         if aug_factor > 1:
             if aug_factor == 8:
                 self.batch_size = self.batch_size * 8
-                depot_xy = augment_xy_data_by_8_fold(depot_xy, self.grid_size)
-                node_xy = augment_xy_data_by_8_fold(node_xy, self.grid_size)
+                depot_xy = augment_xy_data_by_8_fold(depot_xy)
+                node_xy = augment_xy_data_by_8_fold(node_xy)
                 node_demand = node_demand.repeat(8, 1)
-                capacity = capacity.repeat(8)
                 node_tw = node_tw.repeat(8, 1, 1)
             else:
                 raise NotImplementedError
@@ -162,21 +150,18 @@ class CVRPTWEnv:
         depot_tw = torch.Tensor([0, float('inf')])[None, None].expand(self.batch_size, 1, 2)
         self.depot_node_tw = torch.cat((depot_tw, node_tw), dim=1)
         # shape: (batch, problem+1, 2)
-        self.distance_matrix = torch.cdist(self.depot_node_xy, self.depot_node_xy)
+        self.travel_times = travel_times
         # shape: (batch, problem+1, problem+1)
 
         self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.rollout_size)
         self.ROLLOUT_IDX = torch.arange(self.rollout_size)[None, :].expand(self.batch_size, self.rollout_size)
 
-        # Scale demand to [0, 1] based on vehilce capacity
-        self.depot_node_demand /= capacity[:, None]
 
         # Create neural network input. Scale data
-        self.reset_state.depot_xy = depot_xy / self.grid_size
-        self.reset_state.node_xy = node_xy / self.grid_size
+        self.reset_state.depot_xy = depot_xy
+        self.reset_state.node_xy = node_xy
         self.reset_state.node_demand = self.depot_node_demand[:, 1:]
-        self.reset_state.node_tw = node_tw / self.grid_size
-        print(node_tw[0, :])
+        self.reset_state.node_tw = node_tw
 
         self.step_state.BATCH_IDX = self.BATCH_IDX
         self.step_state.ROLLOUT_IDX = self.ROLLOUT_IDX
@@ -272,7 +257,7 @@ class CVRPTWEnv:
         # shape: (batch, pomo, problem+1)
 
         # Mask nodes that can not be reached before the time window end
-        travel_time_to_all = self.distance_matrix[:, None].expand(self.batch_size, self.rollout_size, -1, -1)[
+        travel_time_to_all = self.travel_times[:, None].expand(self.batch_size, self.rollout_size, -1, -1)[
             self.BATCH_IDX, self.ROLLOUT_IDX, selected]
         possible_arrival_time_all = self.time[:, :, None].expand(-1, -1, self.problem_size + 1) + travel_time_to_all
         tw_end_all = self.depot_node_tw[:, None, :, 1].expand(-1, self.rollout_size, -1)
@@ -293,7 +278,7 @@ class CVRPTWEnv:
         self.step_state.current_node = self.current_node
         self.step_state.ninf_mask = self.ninf_mask
         self.step_state.finished = self.finished
-        self.step_state.time = self.time / self.grid_size  # Scale by grid size
+        self.step_state.time = self.time
 
         # returning values
         done = self.finished.all()

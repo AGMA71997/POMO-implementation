@@ -122,22 +122,19 @@ class ESPRCTWEnv:
         self.saved_index = 0
 
     def declare_problem(self, coords, demands, time_windows,
-                        duals, service_times, travel_times, prices, vehicle_capacity, solomon):
+                        duals, service_times, travel_times, prices, vehicle_capacity, batch_size):
 
-        if solomon:
-            coords = coords / 100
+        coords = coords
         demands = demands / vehicle_capacity
         duals = numpy.array(duals)
-        duals = duals / time_windows[0, 1]
-        service_times = service_times / time_windows[0, 1]
-        travel_times = travel_times / time_windows[0, 1]
-        time_windows = time_windows / time_windows[0, 1]
+        max_time = numpy.max(time_windows)
+        duals = duals / max_time
+        service_times = service_times / max_time
+        travel_times = travel_times / max_time
+        time_windows = time_windows / max_time
         min_val = numpy.min(prices)
         max_val = numpy.max(prices)
         prices = prices / max(abs(max_val), abs(min_val))
-
-        self.batch_size = 1
-        # Reshape them for batch index
 
         self.depot_node_xy = torch.tensor(coords, dtype=torch.float32)
         self.depot_node_demand = torch.tensor(demands, dtype=torch.float32)
@@ -147,20 +144,24 @@ class ESPRCTWEnv:
         self.travel_times = torch.tensor(travel_times, dtype=torch.float32)
         self.prices = torch.tensor(prices, dtype=torch.float32)
 
-        self.depot_node_xy = self.depot_node_xy[None, :, :].expand(self.batch_size, -1, -1)
-        # shape: (batch,problem+1, 2)
-        self.depot_node_demand = self.depot_node_demand[None, :].expand(self.batch_size, -1)
-        # shape: (batch,problem+1)
-        self.depot_node_duals = self.depot_node_duals[None, :].expand(self.batch_size, -1)
-        # shape: (batch,problem+1)
-        self.depot_node_time_windows = self.depot_node_time_windows[None, :, :].expand(self.batch_size, -1, -1)
-        # shape: (batch,problem+1,2)
-        self.depot_node_service_time = self.depot_node_service_time[None, :].expand(self.batch_size, -1)
-        # shape: (batch,problem+1)
-        self.travel_times = self.travel_times[None, :, :].expand(self.batch_size, -1, -1)
-        # shape: (batch,problem+1,problem+1)
-        self.prices = self.prices[None, :, :].expand(self.batch_size, -1, -1)
-        # shape: (batch,problem+1,problem+1)
+        self.batch_size = batch_size
+        if self.batch_size == 1:
+            # Reshape them for batch index
+
+            self.depot_node_xy = self.depot_node_xy[None, :, :].expand(self.batch_size, -1, -1)
+            # shape: (batch,problem+1, 2)
+            self.depot_node_demand = self.depot_node_demand[None, :].expand(self.batch_size, -1)
+            # shape: (batch,problem+1)
+            self.depot_node_duals = self.depot_node_duals[None, :].expand(self.batch_size, -1)
+            # shape: (batch,problem+1)
+            self.depot_node_time_windows = self.depot_node_time_windows[None, :, :].expand(self.batch_size, -1, -1)
+            # shape: (batch,problem+1,2)
+            self.depot_node_service_time = self.depot_node_service_time[None, :].expand(self.batch_size, -1)
+            # shape: (batch,problem+1)
+            self.travel_times = self.travel_times[None, :, :].expand(self.batch_size, -1, -1)
+            # shape: (batch,problem+1,problem+1)
+            self.prices = self.prices[None, :, :].expand(self.batch_size, -1, -1)
+            # shape: (batch,problem+1,problem+1)
 
         self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.pomo_size)
         self.POMO_IDX = torch.arange(self.pomo_size)[None, :].expand(self.batch_size, self.pomo_size)
@@ -442,7 +443,6 @@ class ESPRCTWEnv:
 
 
 def main():
-
     env_params = {
         'problem_size': 20,
         'pomo_size': 20,

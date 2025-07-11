@@ -1,213 +1,16 @@
 import torch
 import numpy as np
+from scipy.spatial import distance_matrix
+
+tw_scalar = 18
+min_tw_width = 2
+max_tw_width = 9
 
 
-# def get_random_problems(batch_size, problem_size):
-#
-#     depot_xy = torch.rand(size=(batch_size, 1, 2))
-#     # shape: (batch, 1, 2)
-#
-#     node_xy = torch.rand(size=(batch_size, problem_size, 2))
-#     # shape: (batch, problem, 2)
-#
-#     if problem_size == 20:
-#         demand_scaler = 30
-#     elif problem_size == 50:
-#         demand_scaler = 40
-#     elif problem_size == 100:
-#         demand_scaler = 50
-#     else:
-#         raise NotImplementedError
-#
-#     node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
-#     # shape: (batch, problem)
-#
-#     node_tw_start = torch.randint(0, 21, size=(batch_size, problem_size, 1))
-#     node_tw_end = node_tw_start + torch.randint(4, 9, size=(batch_size, problem_size, 1))
-#     node_tw = torch.cat((node_tw_start, node_tw_end), dim=2)
-#     node_tw = node_tw
-#
-#     service_t = 1
-#
-#     return depot_xy, node_xy, node_demand, node_tw, service_t
-#
-#
-# def get_random_problems_2(batch_size, problem_size):
-#     service_window = 1000
-#     service_duration = 10
-#     time_factor = 100
-#     tw_expansion = 3
-#
-#     # Sample locations
-#     depot_xy = torch.rand(size=(batch_size, 1, 2))
-#     node_xy = torch.rand(size=(batch_size, problem_size, 2))
-#
-#     # Distance from the nodes to the depot
-#     traveling_time = torch.linalg.vector_norm(depot_xy - node_xy, dim=-1) * time_factor
-#
-#     # TW start needs to be feasibly reachable directly from depot
-#     tw_start_min = torch.ceil(traveling_time) + 1
-#
-#     # TW end needs to be early enough to perform service and return to depot until end of service window
-#     tw_end_max = service_window - torch.ceil(traveling_time + service_duration) - 1
-#
-#     # Horizon allows for the feasibility of reaching nodes/returning from nodes within the global TW (service window)
-#     horizon = torch.stack([tw_start_min, tw_end_max], dim=-1)
-#
-#     # Sample time windows start
-#     tw_start = tw_start_min + torch.round((horizon[:, :, 1] - horizon[:, :, 0]) * torch.rand(batch_size, problem_size))
-#
-#     # Sample time windows end
-#     epsilon = torch.clamp(torch.abs(torch.randn(batch_size, problem_size)), min=1 / time_factor)
-#     tw_end = torch.clamp(tw_start + tw_expansion * time_factor * epsilon, max=tw_end_max)
-#
-#     node_tw = torch.stack([tw_start, tw_end], dim=-1)
-#
-#     # Sample node demands
-#     node_demand = torch.clamp(torch.normal(mean=15, std=10, size=[batch_size, problem_size]).abs().round(), min=1, max=42)
-#
-#     # Scale node_tw and the service duration based on the time factor
-#     node_tw /= time_factor
-#     service_duration /= time_factor
-#
-#     # Scale node demand based on vehicle capacity
-#     if problem_size == 20:
-#         demand_scaler = 500
-#     elif problem_size == 50:
-#         demand_scaler = 750
-#     elif problem_size == 100:
-#         demand_scaler = 1000
-#     else:
-#         raise NotImplementedError
-#
-#     node_demand /= demand_scaler
-#
-#     return depot_xy, node_xy, node_demand, node_tw, service_duration
-#
-# def get_random_problems_3(batch_size, problem_size):
-#     service_window = 10
-#     service_duration = 0.1
-#     tw_expansion = 3
-#     epsilon = 0.01
-#
-#     # Sample locations
-#     depot_xy = torch.rand(size=(batch_size, 2))
-#     node_xy = torch.rand(size=(batch_size, problem_size, 2))
-#
-#     # Distance from the nodes to the depot
-#     traveling_time = torch.linalg.vector_norm(depot_xy[:, None] - node_xy, dim=-1)
-#
-#     # TW start needs to be feasibly reachable directly from depot
-#     tw_start_min = traveling_time + epsilon
-#
-#     # TW end needs to be early enough to perform service and return to depot until end of service window
-#     tw_end_max = service_window - traveling_time + service_duration - epsilon
-#
-#     # Horizon allows for the feasibility of reaching nodes/returning from nodes within the global TW (service window)
-#     horizon = torch.stack([tw_start_min, tw_end_max], dim=-1)
-#
-#     # Sample time windows start
-#     tw_start = tw_start_min + (horizon[:, :, 1] - horizon[:, :, 0]) * torch.rand(batch_size, problem_size)
-#
-#     # Sample time windows end
-#     epsilon = torch.clamp(torch.abs(torch.randn(batch_size, problem_size)), min=1 / time_factor)
-#     tw_end = torch.clamp(tw_start + tw_expansion * time_factor * epsilon, max=tw_end_max)
-#
-#     node_tw = torch.stack([tw_start, tw_end], dim=-1)
-#
-#     # Sample node demands
-#     node_demand = torch.clamp(torch.normal(mean=15, std=10, size=[batch_size, problem_size]).abs().round(), min=1, max=42)
-#
-#     # Scale node_tw and the service duration based on the time factor
-#     node_tw /= time_factor
-#     service_duration /= time_factor
-#
-#     # Scale node demand based on vehicle capacity
-#     if problem_size == 20:
-#         demand_scaler = 500
-#     elif problem_size == 50:
-#         demand_scaler = 750
-#     elif problem_size == 100:
-#         demand_scaler = 1000
-#     else:
-#         raise NotImplementedError
-#
-#     node_demand /= demand_scaler
-#
-#     return depot_xy, node_xy, node_demand, node_tw, service_duration
-#
-# def get_random_problems_r101(batch_size, problem_size, scale_values=True):
-#     service_window = 230
-#     service_duration = 10
-#     time_window_size = 10
-#
-#     # Scale node demand based on vehicle capacity
-#     if problem_size == 20:
-#         capacity = 70
-#     elif problem_size == 50:
-#         capacity = 100
-#     elif problem_size == 100:
-#         capacity = 200
-#     else:
-#         raise NotImplementedError
-#
-#
-#     # Sample locations
-#     depot_xy = 45 + torch.randint(0, 11, size=(batch_size, 1, 2))  # The depot is always in the center ([0.45, 0.55]). Otherwise not all customers can be reached with a service window of 230
-#     node_xy = torch.randint(0, 100, size=(batch_size, problem_size, 2))
-#
-#     # Distance from the nodes to the depot
-#     traveling_time = torch.linalg.vector_norm((depot_xy - node_xy).float(), dim=-1)
-#
-#     # TW start needs to be feasibly reachable directly from depot
-#     tw_start_min = torch.ceil(traveling_time) + 1
-#
-#     # TW end needs to be early enough to perform service and return to depot until end of service window
-#     tw_end_max = service_window - torch.ceil(traveling_time + service_duration) - 1
-#
-#     # Horizon allows for the feasibility of reaching nodes/returning from nodes within the global TW (service window)
-#     #horizon = torch.stack([tw_start_min, tw_end_max], dim=-1)
-#
-#     # Sample time windows center
-#     tw_center = tw_start_min + torch.round((tw_end_max - tw_start_min) * torch.rand(batch_size, problem_size))
-#
-#     # Define time window start and end
-#     tw_start = tw_center - time_window_size // 2
-#     tw_end = tw_center + time_window_size // 2
-#     tw_end = torch.clamp(tw_end, max=tw_end_max)  # Set tw_end so that the vehicle always returns to the depot before
-#                                                   # the end of the service_window
-#
-#     if (tw_end < tw_start_min).any():
-#         print("h")
-#
-#     node_tw = torch.stack([tw_start, tw_end], dim=-1)
-#
-#     depot_tw = torch.Tensor([[0, service_window]]).repeat(batch_size, 1)
-#
-#     # Sample node demands
-#     dis = torch.distributions.beta.Beta(1.4, 3)
-#     node_demand = torch.round(dis.rsample([batch_size, problem_size]) * 45 + 1)
-#
-#     if scale_values:
-#         node_demand /= capacity
-#
-#     return depot_xy, node_xy, node_demand, depot_tw, node_tw, service_duration, capacity
-#
-def get_random_problems_dummy(batch_size, problem_size):
-    service_window = 24000
-    service_duration = 1
-
+def get_random_problems(batch_size, problem_size):
     # Sample locations
-    depot_xy = torch.randint(0, 1000, size=(batch_size, 1, 2))
-    node_xy = torch.randint(0, 1000, size=(batch_size, problem_size, 2))
-
-    # Sample time windows start
-    tw_start = torch.zeros(batch_size, problem_size)
-
-    tw_end = torch.ones(batch_size, problem_size) * 24000
-
-    node_tw = torch.stack([tw_start, tw_end], dim=-1)
-    depot_tw = torch.IntTensor([[0, service_window]]).repeat(batch_size, 1)
+    depot_xy = torch.rand((batch_size, 1, 2))
+    node_xy = torch.rand((batch_size, problem_size, 2))
 
     # Scale node demand based on vehicle capacity
     if problem_size == 20:
@@ -219,10 +22,41 @@ def get_random_problems_dummy(batch_size, problem_size):
     else:
         raise NotImplementedError
 
-    node_demand = torch.randint(1, 10, size=(batch_size, problem_size))
-    capacity = torch.ones(batch_size) * demand_scaler
+    node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
 
-    return depot_xy, node_xy, node_demand, depot_tw, node_tw, service_duration, capacity
+    lower_tw = torch.randint(0, 17, (batch_size, problem_size))
+    tw_width = torch.randint(min_tw_width, max_tw_width, (batch_size, problem_size))
+    upper_tw = tw_width + lower_tw
+    time_windows = torch.zeros((batch_size, problem_size, 2))
+    time_windows[:, :, 0] = lower_tw
+    time_windows[:, :, 1] = upper_tw
+    time_windows = time_windows / tw_scalar
+    service_times = (torch.rand((batch_size, problem_size)) * 0.3 + 0.2) / tw_scalar
+
+    travel_times = torch.zeros((batch_size, problem_size + 1, problem_size + 1))
+    for x in range(batch_size):
+        coords = torch.cat((depot_xy[x], node_xy[x]), 0).cpu()
+        travel_times[x] = torch.FloatTensor(distance_matrix(coords, coords))
+        travel_times[x].fill_diagonal_(0)
+
+    travel_times = travel_times / tw_scalar
+    time_windows = repair_time_windows(travel_times, time_windows, service_times)
+
+    return depot_xy, node_xy, node_demand, time_windows, service_times, travel_times
+
+
+def repair_time_windows(travel_times, time_windows, service_times,
+                        scaled_tw_width=min_tw_width / tw_scalar, factor=0.0001):
+    problem_size = travel_times.shape[1] - 1
+    batch_size = travel_times.shape[0]
+
+    latest_possible_arrivals = torch.ones(batch_size, problem_size) - travel_times[:, 1:, 0] - service_times
+    latest_possible_arrivals -= factor
+    time_windows[:, :, 1] = torch.minimum(time_windows[:, :, 1], latest_possible_arrivals)
+    mask = time_windows[:, :, 1] - time_windows[:, :, 0] < scaled_tw_width
+
+    time_windows[:, :, 0][mask] = time_windows[:, :, 1][mask] - scaled_tw_width
+    return time_windows
 
 
 def get_random_problems_from_data(depot_xy, node_xy, node_demand, augment=True):

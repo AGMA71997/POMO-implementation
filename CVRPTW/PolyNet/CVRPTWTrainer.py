@@ -1,4 +1,3 @@
-
 import torch
 from logging import getLogger
 
@@ -8,7 +7,7 @@ from CVRPTWModel import CVRPTWModel as Model
 from torch.optim import Adam as Optimizer
 from torch.optim.lr_scheduler import MultiStepLR as Scheduler
 
-from utils.utils import *
+from CVRPTW.utils.utils import *
 import itertools
 
 
@@ -81,7 +80,8 @@ class CVRPTWTrainer:
         # utility
         self.time_estimator = TimeEstimator()
 
-        self.binary_string_pool = torch.Tensor([list(i) for i in itertools.product([0, 1], repeat=model_params['z_dim'])])
+        self.binary_string_pool = torch.Tensor(
+            [list(i) for i in itertools.product([0, 1], repeat=model_params['z_dim'])])
 
     def run(self):
         self.time_estimator.reset(self.start_epoch)
@@ -90,7 +90,7 @@ class CVRPTWTrainer:
         if self.trainer_params['train_data_load']['enable']:
             self.env.use_saved_problems(self.trainer_params['train_data_load']['filename'], 'cpu')
 
-        for epoch in range(self.start_epoch, self.trainer_params['epochs']+1):
+        for epoch in range(self.start_epoch, self.trainer_params['epochs'] + 1):
             self.logger.info('=================================================================')
 
             # Train
@@ -109,7 +109,6 @@ class CVRPTWTrainer:
             self._validate(greedy_construction=False)
             self.logger.info("Sampling Aug:")
             self._validate(greedy_construction=False, use_augmentation=True)
-
 
             ############################
             # Logs & Checkpoint
@@ -185,8 +184,6 @@ class CVRPTWTrainer:
     def _train_one_batch(self, batch_size):
         z_sample_size = self.trainer_params['train_z_sample_size']
         z_dim = self.model_params['z_dim']
-        amp_training = self.trainer_params['amp_training']
-        device = "cuda" if self.trainer_params['use_cuda'] else "cpu"
 
         if self.model_params['force_first_move']:
             starting_points = self.env_params['problem_size']
@@ -194,7 +191,6 @@ class CVRPTWTrainer:
         else:
             starting_points = 1
             rollout_size = z_sample_size
-
 
         # Prep
         ###############################################
@@ -215,8 +211,7 @@ class CVRPTWTrainer:
         state, reward, done = self.env.pre_step()
 
         while not done:
-            with torch.amp.autocast(device_type=device, enabled=amp_training):
-                selected, prob = self.model(state)
+            selected, prob = self.model(state)
             # shape: (batch, rollout)
             state, reward, done = self.env.step(selected)
             prob_list = torch.cat((prob_list, prob[:, :, None]), dim=2)
@@ -239,7 +234,7 @@ class CVRPTWTrainer:
         best_idx = costs.argsort(1).argsort(1)
         best_idx = best_idx.reshape(batch_size, -1)
         mask = best_idx < 1
-        mask = torch.clamp(mask + (self.trainer_params["mask_leak_alpha"]/z_sample_size), max=1)
+        mask = torch.clamp(mask + (self.trainer_params["mask_leak_alpha"] / z_sample_size), max=1)
 
         log_prob *= mask
 
@@ -321,7 +316,7 @@ class CVRPTWTrainer:
                     prob_list = torch.cat((prob_list, prob[:, :, None]), dim=2)
 
                 reward = reward.reshape(aug_factor, batch_size, z_sample_size, starting_points).transpose(0, 1)
-                reward = reward.reshape(batch_size, aug_factor*z_sample_size, starting_points).transpose(1, 2)
+                reward = reward.reshape(batch_size, aug_factor * z_sample_size, starting_points).transpose(1, 2)
                 costs = torch.cat((costs, -reward), dim=0)
                 mean_log_prob.append(prob_list.log().sum(2).mean().item())
 
@@ -331,20 +326,19 @@ class CVRPTWTrainer:
             for j in range(num_unique_costs.size(1)):
                 num_unique_costs[i][j] = torch.unique(costs[i, j]).numel()
 
-        mean_unique = num_unique_costs.mean()/(aug_factor*z_sample_size)
+        mean_unique = num_unique_costs.mean() / (aug_factor * z_sample_size)
         cost_best = costs.min(dim=2)[0].mean()
         cost_pomo = costs.min(dim=2)[0].min(dim=1)[0].mean()
         self.logger.info(
             f'Log prob: {np.array(mean_log_prob).mean():.4f} Percentage of unique costs: {mean_unique:.3f} Costs (mean, best, best pomo): {costs.mean():.4f} {cost_best:.4f} {cost_pomo:.4f}')
 
-
     def sample_z_vectors(self, batch_size, starting_points, z_dim, z_sample_size, rollout_size):
 
-        if 2**z_dim == rollout_size:
+        if 2 ** z_dim == rollout_size:
             z = self.binary_string_pool[None].expand(batch_size, rollout_size, z_dim)
         else:
-            z_idx = torch.multinomial((torch.ones(batch_size * starting_points, 2**z_dim) / 2**z_dim),
-                                  z_sample_size, replacement=z_sample_size > 2**z_dim)
+            z_idx = torch.multinomial((torch.ones(batch_size * starting_points, 2 ** z_dim) / 2 ** z_dim),
+                                      z_sample_size, replacement=z_sample_size > 2 ** z_dim)
             z = self.binary_string_pool[z_idx].reshape(batch_size, starting_points, z_sample_size, z_dim)
             z = z.transpose(1, 2).reshape(batch_size, rollout_size, z_dim)
         return z
