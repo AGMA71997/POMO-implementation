@@ -8,39 +8,49 @@ max_tw_width = 9
 
 
 def get_random_problems(batch_size, problem_size):
-    # Sample locations
-    depot_xy = torch.rand((batch_size, 1, 2))
-    node_xy = torch.rand((batch_size, problem_size, 2))
+    depot_x = 5.622153766066174
+    depot_y = 52.0308709742657
+    depot_xy = torch.tensor([depot_x / 7, depot_y / 53.5]).repeat(batch_size, 1, 1)
+    # shape: (batch, 1, 2)
 
-    # Scale node demand based on vehicle capacity
-    if problem_size == 20:
-        demand_scaler = 30
-    elif problem_size == 50:
-        demand_scaler = 40
-    elif problem_size == 100:
-        demand_scaler = 50
-    else:
-        raise NotImplementedError
+    node_x = 4 + torch.rand(size=(batch_size, problem_size, 1)) * 3
+    node_y = 51 + torch.rand(size=(batch_size, problem_size, 1)) * 2.5
+    node_xy = torch.cat((node_x / 7, node_y / 53.5), dim=2)
+    # shape: (batch, problem, 2)
 
-    node_demand = torch.randint(1, 10, size=(batch_size, problem_size)) / float(demand_scaler)
+    demand_scaler = 25000
 
-    lower_tw = torch.randint(0, 17, (batch_size, problem_size))
-    tw_width = torch.randint(min_tw_width, max_tw_width, (batch_size, problem_size))
-    upper_tw = tw_width + lower_tw
-    time_windows = torch.zeros((batch_size, problem_size, 2))
-    time_windows[:, :, 0] = lower_tw
-    time_windows[:, :, 1] = upper_tw
-    time_windows = time_windows / tw_scalar
-    service_times = (torch.rand((batch_size, problem_size)) * 0.3 + 0.2) / tw_scalar
+    rate = 1 / 382
+    node_demand = torch.distributions.Exponential(rate).sample((batch_size, problem_size)) / demand_scaler
+    # shape: (batch, problem)
+
+    p = 0.25
+    # Create tensor of probabilities
+    probs = torch.full((batch_size, problem_size, 1), p)  # 3x4 tensor with all values = p
+    # Sample Bernoulli random variables (0 or 1)
+    samples = torch.bernoulli(probs).long()
+
+    tw_scalar = 13
+    horizon_start = 5
+    lower_tw = torch.tensor([5]).repeat(batch_size, problem_size, 1)
+    upper_tw = torch.tensor([18]).repeat(batch_size, problem_size, 1)
+    lower_tw[samples] = torch.randint(8, 10, (batch_size, problem_size, 1))[samples]
+    upper_tw[samples] = torch.randint(15, 18, (batch_size, problem_size, 1))[samples]
+    time_windows = torch.cat((lower_tw, upper_tw), dim=2)
+    time_windows = (time_windows - horizon_start) / tw_scalar
+
+    empty_tensor = torch.empty(batch_size, problem_size)
+    service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
+                                                a=0, b=1.5) / tw_scalar
 
     travel_times = torch.zeros((batch_size, problem_size + 1, problem_size + 1))
     for x in range(batch_size):
-        coords = torch.cat((depot_xy[x], node_xy[x]), 0).cpu()
-        travel_times[x] = torch.FloatTensor(distance_matrix(coords, coords))
+        coords = torch.cat((depot_xy[x], node_xy[x]), 0)
+        travel_times[x] = torch.cdist(coords, coords, p=1)
         travel_times[x].fill_diagonal_(0)
+        travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5] * 5
 
     travel_times = travel_times / tw_scalar
-    time_windows = repair_time_windows(travel_times, time_windows, service_times)
 
     return depot_xy, node_xy, node_demand, time_windows, service_times, travel_times
 
