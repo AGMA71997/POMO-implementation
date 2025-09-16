@@ -4,6 +4,8 @@
 We provide codes for two CO (combinatorial optimization) problems:<br>
 - Traveling Salesman Problem (TSP) <br>
 - Capacitated Vehicle Routing Problem (CVRP) <br>
+- Capacitated Vehicle Routing Problem with Time Windows (CVRPTW) <br>
+- Elementary Shortest Path with Resource Constraints and Time Windows (ESPRCTW) <br>
 
 
 ### Changes from the old version
@@ -24,5 +26,4 @@ You can specify the model as a parameter contained in *test.py*. At the moment, 
 
 
 ### Used Libraries
-python v3.7.6 <br>
-torch==1.7.0 <br>
+python v3.11 <br>
