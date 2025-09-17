@@ -33,10 +33,10 @@ def get_random_problems(batch_size, problem_size):
 
     tw_scalar = 14
     horizon_start = 5
-    lower_tw = torch.tensor([5]).repeat(batch_size, problem_size, 1)
-    upper_tw = torch.tensor([19]).repeat(batch_size, problem_size, 1)
-    lower_tw[samples] = torch.randint(15, 20, (batch_size, problem_size, 1))[samples] / 2
-    upper_tw[samples] = torch.randint(30, 37, (batch_size, problem_size, 1))[samples] / 2
+    lower_tw = torch.tensor([5],dtype=torch.float32).repeat(batch_size, problem_size, 1)
+    upper_tw = torch.tensor([19],dtype=torch.float32).repeat(batch_size, problem_size, 1)
+    lower_tw[samples] = (torch.randint(15, 20, (batch_size, problem_size, 1))/ 2)[samples]
+    upper_tw[samples] = (torch.randint(30, 37, (batch_size, problem_size, 1))/ 2)[samples]
     time_windows = torch.cat((lower_tw, upper_tw), dim=2)
     time_windows = (time_windows - horizon_start) / tw_scalar
 
