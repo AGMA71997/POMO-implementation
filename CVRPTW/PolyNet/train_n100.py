@@ -1,7 +1,7 @@
 ##########################################################################################
 # Machine Environment Config
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 USE_CUDA = not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
 
@@ -86,17 +86,17 @@ trainer_params = {
         'model_save_interval': 5,
     },
     'model_load': {
-        'enable': True,  # enable loading pre-trained model
+        'enable': False,  # enable loading pre-trained model
         'path': './result/tmp',  # directory path of pre-trained model and log files saved.
         'epoch': 15500,  # epoch version of pre-trained model to laod.
 
     },
     'train_data_load': {
-        'enable': True,
+        'enable': False,
         'filename': '../../data/CVRP100_training_10T_seed0.pt'
     },
     'validation_data_load': {
-        'enable': True,
+        'enable': False,
         'filename': '../../data/CVRPTW100_validation_10T_seed1233.pt'
     },
 }
@@ -116,7 +116,7 @@ def main():
     if DEBUG_MODE:
         _set_debug_mode()
 
-    create_logger(**logger_params, run_name=run_params['name'])
+    create_logger(**logger_params)
     _print_config()
 
     trainer = Trainer(run_params=run_params,
@@ -125,7 +125,7 @@ def main():
                       optimizer_params=optimizer_params,
                       trainer_params=trainer_params)
 
-    copy_all_src(trainer.result_folder)
+    #copy_all_src(trainer.result_folder)
 
     trainer.run()
 

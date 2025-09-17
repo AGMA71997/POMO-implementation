@@ -114,7 +114,7 @@ class CVRPTWEnv:
         self.rollout_size = rollout_size
 
         if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand, node_tw, self.service_t, travel_times = get_random_problems(batch_size,
+            depot_xy, node_xy, node_demand, node_tw, service_t, travel_times = get_random_problems(batch_size,
                                                                                                              self.problem_size)
             depot_xy = depot_xy.float()
             node_xy = node_xy.float()
@@ -147,6 +147,8 @@ class CVRPTWEnv:
         # shape: (batch, 1)
         self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
         # shape: (batch, problem+1)
+        depot_st = torch.zeros(size=(self.batch_size, 1))
+        self.depot_node_st = torch.cat((depot_st,service_t),dim=1)
         depot_tw = torch.Tensor([0, float('inf')])[None, None].expand(self.batch_size, 1, 2)
         self.depot_node_tw = torch.cat((depot_tw, node_tw), dim=1)
         # shape: (batch, problem+1, 2)
@@ -220,11 +222,15 @@ class CVRPTWEnv:
         self.at_the_depot = (selected == 0)
 
         demand_list = self.depot_node_demand[:, None, :].expand(self.batch_size, self.rollout_size, -1)
+        st_list =  self.depot_node_st[:, None, :].expand(self.batch_size, self.rollout_size, -1)
         # shape: (batch, pomo, problem+1)
         gathering_index = selected[:, :, None]
         # shape: (batch, pomo, 1)
         selected_demand = demand_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
         # shape: (batch, pomo)
+        selected_service_times = st_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
+
+
         self.load -= selected_demand
         self.load[self.at_the_depot] = 1  # refill loaded at the depot
 
@@ -238,7 +244,7 @@ class CVRPTWEnv:
             travel_time = self._get_travel_distance_last_step()
         tw_start_list = self.depot_node_tw[:, None, :, 0].expand(self.batch_size, self.rollout_size, -1)
         selected_tw_start = torch.gather(tw_start_list, 2, gathering_index).squeeze(dim=2)
-        self.time = torch.maximum(self.time + travel_time, selected_tw_start) + self.service_t
+        self.time = torch.maximum(self.time + travel_time, selected_tw_start) + selected_service_times
         self.time[self.at_the_depot] = 0  # reset time at the depot
 
         # Compute mask

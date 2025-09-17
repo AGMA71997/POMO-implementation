@@ -7,7 +7,7 @@ from CVRPTWModel import CVRPTWModel as Model
 from torch.optim import Adam as Optimizer
 from torch.optim.lr_scheduler import MultiStepLR as Scheduler
 
-from CVRPTW.utils.utils import *
+from utils.utils import *
 import itertools
 
 
@@ -251,7 +251,7 @@ class CVRPTWTrainer:
         ###############################################
         self.model.zero_grad()
 
-        if not amp_training:
+        if not self.trainer_params['amp_training']:
             loss_mean.backward()
             self.optimizer.step()
         else:
