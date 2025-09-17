@@ -31,14 +31,14 @@ def get_random_problems(batch_size, problem_size):
     # Sample Bernoulli random variables (0 or 1)
     samples = torch.bernoulli(probs).long()
 
-    tw_scalar = 13
+    tw_scalar = 14
     horizon_start = 5
-    lower_tw = torch.tensor([5]).repeat(batch_size, problem_size,1)
-    upper_tw = torch.tensor([18]).repeat(batch_size, problem_size,1)
-    lower_tw[samples] = torch.randint(8, 10, (batch_size, problem_size,1))[samples]
-    upper_tw[samples] = torch.randint(15, 18, (batch_size, problem_size,1))[samples]
+    lower_tw = torch.tensor([5]).repeat(batch_size, problem_size, 1)
+    upper_tw = torch.tensor([19]).repeat(batch_size, problem_size, 1)
+    lower_tw[samples] = torch.randint(15, 20, (batch_size, problem_size, 1))[samples] / 2
+    upper_tw[samples] = torch.randint(30, 37, (batch_size, problem_size, 1))[samples] / 2
     time_windows = torch.cat((lower_tw, upper_tw), dim=2)
-    time_windows = (time_windows-horizon_start) / tw_scalar
+    time_windows = (time_windows - horizon_start) / tw_scalar
 
     empty_tensor = torch.empty(batch_size, problem_size)
     service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
