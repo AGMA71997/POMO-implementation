@@ -51,7 +51,7 @@ def get_random_problems(batch_size, problem_size):
         coords = torch.cat((depot_xy[x], node_xy[x]), 0)
         travel_times[x] = torch.cdist(coords, coords, p=1)
         travel_times[x].fill_diagonal_(0)
-        travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
+        # travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
         duals[x] = create_duals(travel_times[x])
         prices[x] = (travel_times[x] -duals[x]) * -1
         prices[x].fill_diagonal_(0)
