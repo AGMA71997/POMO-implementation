@@ -69,7 +69,7 @@ def create_duals(time_matrix):
     problem_size = time_matrix.shape[1]-1
     duals = torch.zeros(size=(problem_size+1,), dtype=torch.float32)
     indices = list(range(1, problem_size+1))
-    scaler =0.75*torch.rand([]) #0.2 + 0.9 * torch.rand()
+    scaler = 0.2 + 0.9 * torch.rand([]) #0.75*torch.rand([])
     non_zeros = random.randint(problem_size / 2, problem_size)
     chosen = random.sample(indices, non_zeros)
     max_travel_times, _ = torch.max(time_matrix,dim=0)
