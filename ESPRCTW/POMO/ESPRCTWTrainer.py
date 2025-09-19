@@ -148,9 +148,13 @@ class ESPRCTWTrainer:
             remaining = train_num_episode - episode
             batch_size = min(self.trainer_params['train_batch_size'], remaining)
 
-            avg_score, avg_loss = self._train_one_batch(batch_size)
-            score_AM.update(avg_score, batch_size)
-            loss_AM.update(avg_loss, batch_size)
+            try:
+                avg_score, avg_loss = self._train_one_batch(batch_size)
+                score_AM.update(avg_score, batch_size)
+                loss_AM.update(avg_loss, batch_size)
+            except:
+                print("Infeasible Instance detected")
+                continue
 
             episode += batch_size
 
