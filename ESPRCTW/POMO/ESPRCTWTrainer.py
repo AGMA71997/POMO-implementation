@@ -192,7 +192,13 @@ class ESPRCTWTrainer:
         state, reward, done = self.env.pre_step()
 
         while not done:
-            selected, prob = self.model(state)
+            try:
+                selected, prob = self.model(state)
+            except:
+                torch.save([self.env.travel_times, self.env.depot_node_duals,
+                            self.env.depot_node_time_windows, self.env.depot_node_service_time],
+                           'Wrong data')
+                sys.exit(0)
             # shape: (batch, pomo)
             state, reward, done = self.env.step(selected)
             prob_list = torch.cat((prob_list, prob[:, :, None]), dim=2)

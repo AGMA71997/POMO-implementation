@@ -9,14 +9,14 @@ from scipy.spatial import distance_matrix
 def get_random_problems(batch_size, problem_size):
     depot_x = 5.622153766066174
     depot_y = 52.0308709742657
-    depot_xy = torch.tensor([depot_x/7,depot_y/53.5]).repeat(batch_size, 1, 1)
+    depot_xy = torch.tensor([depot_x,depot_y]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
     depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
 
     node_x = 4+torch.rand(size=(batch_size, problem_size,1))*3
     node_y =  51+torch.rand(size=(batch_size, problem_size,1))*2.5
-    node_xy = torch.cat((node_x/7, node_y/53.5), dim=2)
+    node_xy = torch.cat((node_x, node_y), dim=2)
     # shape: (batch, problem, 2)
 
     demand_scaler = 25000
@@ -27,22 +27,27 @@ def get_random_problems(batch_size, problem_size):
 
     p = 0.25
     # Create tensor of probabilities
-    probs = torch.full((batch_size, problem_size,1), p)  # 3x4 tensor with all values = p
-    # Sample Bernoulli random variables (0 or 1)
-    samples = torch.bernoulli(probs).long()
+    samples = torch.rand((batch_size, problem_size, 1)) < p
 
     tw_scalar = 14
     horizon_start = 5
     lower_tw = torch.tensor([5],dtype=torch.float32).repeat(batch_size, problem_size, 1)
     upper_tw = torch.tensor([19],dtype=torch.float32).repeat(batch_size, problem_size, 1)
-    lower_tw[samples] = (torch.randint(15, 20, (batch_size, problem_size, 1))/ 2)[samples]
-    upper_tw[samples] = (torch.randint(30, 37, (batch_size, problem_size, 1))/ 2)[samples]
+    lower_tw[samples] = (torch.randint(15, 21, (batch_size, problem_size, 1))/ 2)[samples]
+    upper_tw[samples] = (torch.randint(30, 38, (batch_size, problem_size, 1))/ 2)[samples]
     time_windows = torch.cat((lower_tw, upper_tw), dim=2)
     time_windows = (time_windows - horizon_start) / tw_scalar
+    print(time_windows[0,0,:10])
 
     empty_tensor = torch.empty(batch_size, problem_size)
     service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
-                                                a=0, b=1.5)/tw_scalar
+                                                a=0.05, b=0.6)
+
+    p=0.02
+    # Create tensor of probabilities
+    samples = torch.rand((batch_size, problem_size)) < p
+    service_times[samples] = (torch.randint(100,151, (batch_size,problem_size))/100)[samples]
+    service_times = service_times/tw_scalar
 
     travel_times = torch.zeros((batch_size, problem_size + 1, problem_size + 1))
     prices = torch.zeros((batch_size, problem_size + 1, problem_size + 1))
@@ -63,11 +68,12 @@ def get_random_problems(batch_size, problem_size):
     duals = duals[:,1:] / tw_scalar
     time_windows = repair_time_windows(travel_times, time_windows, service_times,
                                        tw_scalar, 4)
-    try:
-        assert (node_demand<1).all()
-        assert (time_windows[:,:,1]+travel_times[:,1:,0]<1).all()
-    except:
-        torch.save([node_demand,time_windows,travel_times,service_times], "infeasible_instances")
+
+    depot_xy[:,:,0] = (depot_xy[:,:,0]-4)/3
+    depot_xy[:, :, 1] = (depot_xy[:, :, 1] - 51) / 2.5
+    node_xy[:, :, 0] = (node_xy[:, :, 0] - 4) / 3
+    node_xy[:, :, 1] = (node_xy[:, :, 1] - 51) / 2.5
+
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
 
