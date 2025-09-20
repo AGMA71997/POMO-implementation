@@ -49,7 +49,7 @@ def get_random_problems(batch_size, problem_size):
     duals = torch.zeros((batch_size, problem_size+1))
     for x in range(batch_size):
         coords = torch.cat((depot_xy[x], node_xy[x]), 0)
-        travel_times[x] = torch.cdist(coords, coords, p=1)
+        travel_times[x] = torch.cdist(coords, coords, p=2)
         travel_times[x].fill_diagonal_(0)
         # travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
         duals[x] = create_duals(travel_times[x])
@@ -63,6 +63,11 @@ def get_random_problems(batch_size, problem_size):
     duals = duals[:,1:] / tw_scalar
     time_windows = repair_time_windows(travel_times, time_windows, service_times,
                                        tw_scalar, 4)
+    try:
+        assert (node_demand<1).all()
+        assert (time_windows[:,:,1]+travel_times[:,1:,0]<1).all()
+    except:
+        torch.save([node_demand,time_windows,travel_times,service_times], "infeasible_instances")
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
 
