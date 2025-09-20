@@ -10,7 +10,7 @@ from torch.optim import Adam as Optimizer
 from torch.optim.lr_scheduler import MultiStepLR as Scheduler
 
 from utils.utils import *
-
+import pickle
 
 class ESPRCTWTrainer:
     def __init__(self,
@@ -156,7 +156,9 @@ class ESPRCTWTrainer:
                 loss_AM.update(avg_loss, batch_size)
             except:
                 print("Infeasible Instance detected")
-                torch.save(self.env, "Bugged Instances")
+                pickle_out = open("Bugged Instances", 'wb')
+                pickle.dump(self.env, pickle_out)
+                pickle_out.close()
                 sys.exit(0)
 
             episode += batch_size
