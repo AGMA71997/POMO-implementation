@@ -61,6 +61,8 @@ def get_random_problems(batch_size, problem_size):
 
     travel_times = travel_times / tw_scalar
     duals = duals[:,1:] / tw_scalar
+    time_windows = repair_time_windows(travel_times, time_windows, service_times,
+                                       tw_scalar, 4)
 
     return depot_xy, node_xy, node_demand, time_windows, depot_time_window, duals, service_times, travel_times, prices
 
@@ -76,6 +78,21 @@ def create_duals(time_matrix):
     randoms = torch.rand(size=(non_zeros,))
     duals[chosen] = max_travel_times[chosen] * scaler * randoms
     return duals
+
+def repair_time_windows(travel_times, time_windows, service_times, tw_scalar,
+                        min_tw_width, factor=0.0001):
+
+    scaled_tw_width = min_tw_width / tw_scalar
+    problem_size = travel_times.shape[1] - 1
+    batch_size = travel_times.shape[0]
+
+    latest_possible_arrivals = torch.ones(batch_size, problem_size) - travel_times[:, 1:, 0] - service_times
+    latest_possible_arrivals -= factor
+    time_windows[:, :, 1] = torch.minimum(time_windows[:, :, 1], latest_possible_arrivals)
+    mask = time_windows[:, :, 1] - time_windows[:, :, 0] < scaled_tw_width
+
+    time_windows[:, :, 0][mask] = time_windows[:, :, 1][mask] - scaled_tw_width
+    return time_windows
 
 def augment_xy_data_by_8_fold(problems):
     # problems.shape: (batch, problem, 2)

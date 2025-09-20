@@ -1,3 +1,5 @@
+import sys
+
 import torch
 from logging import getLogger
 
@@ -154,7 +156,8 @@ class ESPRCTWTrainer:
                 loss_AM.update(avg_loss, batch_size)
             except:
                 print("Infeasible Instance detected")
-                continue
+                torch.save(self.env, "Bugged Instances")
+                sys.exit(0)
 
             episode += batch_size
 

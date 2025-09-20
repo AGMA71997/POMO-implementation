@@ -386,30 +386,8 @@ class ESPRCTWEnv:
 
         too_late = future_arrivals + round_error_epsilon > future_window_1
 
-        gathering_index6 = torch.zeros((self.batch_size, self.pomo_size, self.problem_size + 1), dtype=torch.int64)
-        gathering_index6 = gathering_index6[:, :, :, None]
-        future_window_0 = time_window_list.gather(dim=3, index=gathering_index6).squeeze(dim=3)
-        # shape: (batch, pomo, problem+1)
-
-        future_entries = torch.maximum(future_arrivals, future_window_0)
-        future_departures = future_entries + service_time_list
-
-        gathering_index7 = torch.zeros((self.batch_size, self.pomo_size, self.problem_size + 1), dtype=torch.int64)
-        gathering_index7 = gathering_index7[:, :, :, None]
-        travel_time_to_depot = travel_time_list.gather(dim=3, index=gathering_index7).squeeze(dim=3)
-        # shape: (batch, pomo, problem+1)
-
-        depot_arrival = future_departures + travel_time_to_depot
-        # shape: (batch, pomo, problem+1)
-        depot_time_windows = self.depot_node_time_windows[:, 0, 1]
-        depot_time_windows = depot_time_windows[:, None, None].expand(-1, self.pomo_size, self.problem_size + 1)
-
-        cant_reach_depot = depot_arrival + round_error_epsilon > depot_time_windows
-        # shape: (batch, pomo, problem+1)
-
         self.ninf_mask[demand_too_large] = float('-inf')
         self.ninf_mask[too_late] = float('-inf')
-        self.ninf_mask[cant_reach_depot] = float('-inf')
         # shape: (batch, pomo, problem+1)
 
         self.current_prices = self.current_prices + selected_prices
