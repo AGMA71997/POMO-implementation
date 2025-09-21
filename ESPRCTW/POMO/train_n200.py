@@ -2,7 +2,7 @@
 # Machine Environment Config
 
 DEBUG_MODE = False
-USE_CUDA = False  # not DEBUG_MODE
+USE_CUDA = not DEBUG_MODE
 CUDA_DEVICE_NUM = 0
 
 ##########################################################################################
@@ -56,7 +56,7 @@ optimizer_params = {
 trainer_params = {
     'use_cuda': USE_CUDA,
     'cuda_device_num': CUDA_DEVICE_NUM,
-    'epochs': 500,
+    'epochs': 200,
     'train_episodes': 10000,
     # 'data_count': 7050,
     'train_batch_size': 64,
@@ -64,7 +64,7 @@ trainer_params = {
     # 'heuristic': True,
     'prev_model_path': None,
     'logging': {
-        'model_save_interval': 10,
+        'model_save_interval': 25,
         'img_save_interval': 10,
         'log_image_params_1': {
             'json_foldername': 'log_image_style',
@@ -86,7 +86,7 @@ trainer_params = {
 
 logger_params = {
     'log_file': {
-        'desc': 'train_esprctw_n100',
+        'desc': 'train_esprctw_n200',
         'filename': 'run_log'
     }
 }

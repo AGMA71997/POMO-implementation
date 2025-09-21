@@ -37,7 +37,6 @@ def get_random_problems(batch_size, problem_size):
     upper_tw[samples] = (torch.randint(30, 38, (batch_size, problem_size, 1))/ 2)[samples]
     time_windows = torch.cat((lower_tw, upper_tw), dim=2)
     time_windows = (time_windows - horizon_start) / tw_scalar
-    print(time_windows[0,0,:10])
 
     empty_tensor = torch.empty(batch_size, problem_size)
     service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
@@ -54,7 +53,11 @@ def get_random_problems(batch_size, problem_size):
     duals = torch.zeros((batch_size, problem_size+1))
     for x in range(batch_size):
         coords = torch.cat((depot_xy[x], node_xy[x]), 0)
-        travel_times[x] = torch.cdist(coords, coords, p=2)
+        distances = manhattan_geo_distance_matrix(coords) #torch.cdist(coords, coords, p=2)
+        speeds = 60*(distances/10)
+        speeds[speeds<35] = 35
+        speeds[speeds>80]=  80
+        travel_times[x] = distances/speeds
         travel_times[x].fill_diagonal_(0)
         # travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
         duals[x] = create_duals(travel_times[x])
@@ -105,6 +108,32 @@ def repair_time_windows(travel_times, time_windows, service_times, tw_scalar,
     time_windows[:, :, 0][mask] = time_windows[:, :, 1][mask] - scaled_tw_width
     return time_windows
 
+def manhattan_geo_distance_matrix(coords):
+    xp = torch
+    arr = coords.clone().detach().to(dtype=torch.float32)
+
+    lon_deg = arr[:, 0]
+    lat_deg = arr[:, 1]
+
+    # Pairwise degree diffs
+    lon1 = lon_deg[:, None]; lon2 = lon_deg[None, :]
+    lat1 = lat_deg[:, None]; lat2 = lat_deg[None, :]
+
+    dlon_deg = xp.abs(lon2 - lon1)
+    dlat_deg = xp.abs(lat2 - lat1)
+
+    # Average latitude (radians) for E–W scaling
+    lat_mean_rad = ((lat1 + lat2) * (xp.pi / 180.0)) * 0.5
+
+    # Convert degree diffs to meters (approx.)
+    # 1 deg lat ≈ 111,132 m; 1 deg lon ≈ 111,320 * cos(lat) m
+    dy = 111_132.0 * dlat_deg
+    dx = 111_320.0 * xp.cos(lat_mean_rad) * dlon_deg
+
+    D = dx + dy  # Manhattan distance
+    D = D / 1000.0
+    return D
+
 def augment_xy_data_by_8_fold(problems):
     # problems.shape: (batch, problem, 2)
 
@@ -125,3 +154,21 @@ def augment_xy_data_by_8_fold(problems):
     # shape: (8*batch, problem, 2)
 
     return aug_problems
+
+def main():
+    coords =torch.tensor([[ 5.62215377, 52.03087097],
+ [ 4.914584  , 51.8450816 ],
+ [ 4.779223  , 51.8676869 ],
+ [ 4.6954949 , 51.887344  ],
+ [ 4.691139 ,  51.8925349 ]])
+
+    travel_times =torch.zeros((5,5),dtype=torch.float32)
+    distances = manhattan_geo_distance_matrix(coords)  # torch.cdist(coords, coords, p=2)
+    travel_times[distances < 10] = distances[distances < 10] / 35
+    travel_times[distances > 10] = distances[distances > 10] / 70
+    print(distances)
+    print(travel_times)
+
+
+if __name__ == "__main__":
+    main()
