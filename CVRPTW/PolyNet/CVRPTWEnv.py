@@ -14,6 +14,8 @@ class Reset_State:
     # shape: (batch, problem)
     node_tw: torch.Tensor = None
     # shape: (batch, problem, 2)
+    node_st: torch.Tensor = None
+    # shape: (batch, problem)
 
 
 @dataclass
@@ -43,14 +45,6 @@ class CVRPTWEnv:
         self.problem_size = env_params['problem_size']
         self.rollout_size = None
 
-        self.FLAG__use_saved_problems = False
-        self.saved_depot_xy = None
-        self.saved_node_xy = None
-        self.saved_node_demand = None
-        self.saved_node_tw = None
-        self.saved_service_t = None
-        self.saved_index = None
-
         # Const @Load_Problem
         ####################################
         self.batch_size = None
@@ -61,11 +55,11 @@ class CVRPTWEnv:
         # shape: (batch, problem+1, 2)
         self.depot_node_demand = None
         # shape: (batch, problem+1)
+        self.depot_node_st = None
         self.depot_node_tw = None
         # shape: (batch, problem+1)
         self.travel_times = None
         # shape: (batch, problem+1, problem+1)
-        self.service_t = None
 
         # Dynamic-1
         ####################################
@@ -89,7 +83,7 @@ class CVRPTWEnv:
         # shape: (batch, pomo)
         self.time = None
         # shape: (batch, pomo)
-        self.used_vehicles = None
+        self.total_travel_time = None
         # shape: (batch, pomo)
 
         # states to return
@@ -97,39 +91,42 @@ class CVRPTWEnv:
         self.reset_state = Reset_State()
         self.step_state = Step_State()
 
-    def use_saved_problems(self, filename, device):
-        self.FLAG__use_saved_problems = True
+    def declare_problem(self, depot_xy, node_xy, node_demand, node_tw, node_st,
+                    travel_times, batch_size):
 
-        loaded_dict = torch.load(filename, map_location=device)
-        self.saved_depot_xy = loaded_dict['depot_xy'].float()
-        self.saved_node_xy = loaded_dict['node_xy'].float()
-        self.saved_node_demand = loaded_dict['node_demand'].float()
-        if 'node_tw' in loaded_dict.keys():
-            self.saved_node_tw = loaded_dict['node_tw']
-            self.service_t = loaded_dict['service_duration']
-        self.saved_index = 0
+        self.batch_size = batch_size
+
+        self.reset_state.depot_xy = depot_xy
+        self.reset_state.node_xy = node_xy
+        self.reset_state.node_demand = node_demand
+        self.reset_state.node_tw = node_tw
+        self.reset_state.node_st = node_st
+
+        self.depot_node_xy = torch.cat((depot_xy, node_xy), dim=1)
+        # shape: (batch, problem+1, 2)
+        depot_demand = torch.zeros(size=(self.batch_size, 1))
+        # shape: (batch, 1)
+        self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
+        # shape: (batch, problem+1)
+        depot_tw = torch.Tensor([0, 1])[None, None].expand(self.batch_size, 1, 2)
+        self.depot_node_tw = torch.cat((depot_tw, node_tw), dim=1)
+        depot_st = torch.zeros(size=(self.batch_size, 1))
+        self.depot_node_st = torch.cat((depot_st, node_st), dim=1)
+        self.travel_times = travel_times
+
+        self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.pomo_size)
+        self.POMO_IDX = torch.arange(self.pomo_size)[None, :].expand(self.batch_size, self.pomo_size)
+        self.step_state.BATCH_IDX = self.BATCH_IDX
+        self.step_state.POMO_IDX = self.POMO_IDX
 
     def load_problems(self, batch_size, rollout_size, device, aug_factor=1):
         self.batch_size = batch_size
         self.rollout_size = rollout_size
 
-        if not self.FLAG__use_saved_problems:
-            depot_xy, node_xy, node_demand, node_tw, service_t, travel_times = get_random_problems(batch_size,
-                                                                                                             self.problem_size)
-            depot_xy = depot_xy.float()
-            node_xy = node_xy.float()
-            node_demand = node_demand.float()
-        else:
-            depot_xy = self.saved_depot_xy[self.saved_index:self.saved_index + batch_size].to(device)
-            node_xy = self.saved_node_xy[self.saved_index:self.saved_index + batch_size].to(device)
-            node_demand = self.saved_node_demand[self.saved_index:self.saved_index + batch_size].to(device)
-            node_tw = self.saved_node_tw[self.saved_index:self.saved_index + batch_size].to(device)
 
-            self.saved_index += batch_size
-            if self.saved_index > self.saved_node_xy.shape[0] - batch_size:
-                self.saved_index = 0
-
-        assert node_xy.shape[1] == self.env_params['problem_size']
+        depot_xy, node_xy, node_demand, node_tw, node_st, travel_times = get_random_problems(batch_size,
+                                                                                                         self.problem_size)
+        self.travel_times = travel_times
 
         if aug_factor > 1:
             if aug_factor == 8:
@@ -148,12 +145,10 @@ class CVRPTWEnv:
         self.depot_node_demand = torch.cat((depot_demand, node_demand), dim=1)
         # shape: (batch, problem+1)
         depot_st = torch.zeros(size=(self.batch_size, 1))
-        self.depot_node_st = torch.cat((depot_st,service_t),dim=1)
-        depot_tw = torch.Tensor([0, float('inf')])[None, None].expand(self.batch_size, 1, 2)
+        self.depot_node_st = torch.cat((depot_st,node_st),dim=1)
+        depot_tw = torch.Tensor([0, 1])[None, None].expand(self.batch_size, 1, 2)
         self.depot_node_tw = torch.cat((depot_tw, node_tw), dim=1)
         # shape: (batch, problem+1, 2)
-        self.travel_times = travel_times
-        # shape: (batch, problem+1, problem+1)
 
         self.BATCH_IDX = torch.arange(self.batch_size)[:, None].expand(self.batch_size, self.rollout_size)
         self.ROLLOUT_IDX = torch.arange(self.rollout_size)[None, :].expand(self.batch_size, self.rollout_size)
@@ -162,8 +157,9 @@ class CVRPTWEnv:
         # Create neural network input. Scale data
         self.reset_state.depot_xy = depot_xy
         self.reset_state.node_xy = node_xy
-        self.reset_state.node_demand = self.depot_node_demand[:, 1:]
+        self.reset_state.node_demand = node_demand
         self.reset_state.node_tw = node_tw
+        self.reset_state.node_st = node_st
 
         self.step_state.BATCH_IDX = self.BATCH_IDX
         self.step_state.ROLLOUT_IDX = self.ROLLOUT_IDX
@@ -187,8 +183,7 @@ class CVRPTWEnv:
         # shape: (batch, pomo)
         self.time = torch.zeros(size=(self.batch_size, self.rollout_size))
         # shape: (batch, pomo)
-        self.used_vehicles = torch.zeros(size=(self.batch_size, self.rollout_size))
-        # shape: (batch, pomo)
+        self.total_travel_time = torch.zeros(size=(self.batch_size, self.rollout_size))
 
         reward = None
         done = False
@@ -212,6 +207,11 @@ class CVRPTWEnv:
         # Dynamic-1
         ####################################
         self.selected_count += 1
+        if self.current_node is not None:
+            previous_indexes = self.current_node
+            previous_indexes = previous_indexes[:, :, None].expand(-1, -1, self.problem_size + 1)
+            previous_indexes = previous_indexes[:, :, None, :]
+
         self.current_node = selected
         # shape: (batch, pomo)
         self.selected_node_list = torch.cat((self.selected_node_list, self.current_node[:, :, None]), dim=2)
@@ -224,27 +224,33 @@ class CVRPTWEnv:
         demand_list = self.depot_node_demand[:, None, :].expand(self.batch_size, self.rollout_size, -1)
         st_list =  self.depot_node_st[:, None, :].expand(self.batch_size, self.rollout_size, -1)
         # shape: (batch, pomo, problem+1)
+        travel_time_list = self.travel_times[:, None, :, :].expand(self.batch_size, self.rollout_size, -1, -1)
+        # shape: (batch, pomo, problem+1, problem+1)
+
         gathering_index = selected[:, :, None]
         # shape: (batch, pomo, 1)
         selected_demand = demand_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
         # shape: (batch, pomo)
-        selected_service_times = st_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
+        selected_st = st_list.gather(dim=2, index=gathering_index).squeeze(dim=2)
 
+        if self.selected_count == 1:
+            travel_times = torch.zeros(self.batch_size, self.rollout_size)
+        else:
+            selected_travel_matrices = travel_time_list.gather(dim=2, index=previous_indexes).squeeze(dim=2)
+            # shape: (batch, pomo, problem+1)
+            travel_times = selected_travel_matrices.gather(dim=2, index=gathering_index).squeeze(dim=2)
+            # shape: (batch, pomo)
+            self.total_travel_time += travel_times
 
         self.load -= selected_demand
         self.load[self.at_the_depot] = 1  # refill loaded at the depot
 
-        self.used_vehicles += self.at_the_depot.int() - self.finished.int()  # Maybe only calculate this after solution is complete?
-
         # Dynamic-TW
         ####################################
-        if self.selected_count == 1:
-            travel_time = torch.zeros(self.batch_size, self.rollout_size)
-        else:
-            travel_time = self._get_travel_distance_last_step()
+
         tw_start_list = self.depot_node_tw[:, None, :, 0].expand(self.batch_size, self.rollout_size, -1)
         selected_tw_start = torch.gather(tw_start_list, 2, gathering_index).squeeze(dim=2)
-        self.time = torch.maximum(self.time + travel_time, selected_tw_start) + selected_service_times
+        self.time = torch.maximum(self.time + travel_times, selected_tw_start) + selected_st
         self.time[self.at_the_depot] = 0  # reset time at the depot
 
         # Compute mask
@@ -289,7 +295,7 @@ class CVRPTWEnv:
         # returning values
         done = self.finished.all()
         if done:
-            reward = -self._get_total_travel_distance()  # note the minus sign! -self.used_vehicles
+            reward = -self.total_travel_time  # note the minus sign! -self.used_vehicles
         else:
             reward = None
 
