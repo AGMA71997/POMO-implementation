@@ -1,10 +1,13 @@
-import math
 import random
 
 import torch
-import numpy
-from scipy.spatial import distance_matrix
 
+import pickle
+import os
+
+coords_file_path = file_path = os.path.join(os.getcwd(), "..", "coords data")
+pickle_in = open(coords_file_path, 'rb')
+coords_data = pickle.load(pickle_in)
 
 def get_random_problems(batch_size, problem_size):
     depot_x = 5.622153766066174
@@ -14,9 +17,10 @@ def get_random_problems(batch_size, problem_size):
     depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
 
-    node_x = 4+torch.rand(size=(batch_size, problem_size,1))*3
-    node_y =  51+torch.rand(size=(batch_size, problem_size,1))*2.5
-    node_xy = torch.cat((node_x, node_y), dim=2)
+    node_xy =torch.zeros((batch_size,problem_size,2))
+    for x in range(batch_size):
+        node_xy[x] = torch.tensor(coords_data.sample(n=problem_size,
+                                                     replace=False).values)
     # shape: (batch, problem, 2)
 
     demand_scaler = 25000
@@ -41,7 +45,6 @@ def get_random_problems(batch_size, problem_size):
     empty_tensor = torch.empty(batch_size, problem_size)
     service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
                                                 a=0.05, b=0.6)
-
     p=0.02
     # Create tensor of probabilities
     samples = torch.rand((batch_size, problem_size)) < p
@@ -59,7 +62,6 @@ def get_random_problems(batch_size, problem_size):
         speeds[speeds>80]=  80
         travel_times[x] = distances/speeds
         travel_times[x].fill_diagonal_(0)
-        # travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
         duals[x] = create_duals(travel_times[x])
         prices[x] = (travel_times[x] -duals[x]) * -1
         prices[x].fill_diagonal_(0)

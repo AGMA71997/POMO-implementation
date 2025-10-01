@@ -1,26 +1,30 @@
 import torch
-import numpy as np
-from scipy.spatial import distance_matrix
 
-tw_scalar = 18
-min_tw_width = 2
-max_tw_width = 9
+import pickle
+import os
+
+coords_file_path = file_path = os.path.join(os.getcwd(), "..", "coords data")
+pickle_in = open(coords_file_path, 'rb')
+coords_data = pickle.load(pickle_in)
 
 
 def get_random_problems(batch_size, problem_size):
     depot_x = 5.622153766066174
     depot_y = 52.0308709742657
-    depot_xy = torch.tensor([depot_x,depot_y]).repeat(batch_size, 1, 1)
+    depot_xy = torch.tensor([depot_x, depot_y]).repeat(batch_size, 1, 1)
+    # shape: (batch, 1, 2)
+    depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
 
-    node_x = 4+torch.rand(size=(batch_size, problem_size,1))*3
-    node_y =  51+torch.rand(size=(batch_size, problem_size,1))*2.5
-    node_xy = torch.cat((node_x, node_y), dim=2)
+    node_xy = torch.zeros((batch_size, problem_size, 2))
+    for x in range(batch_size):
+        node_xy[x] = torch.tensor(coords_data.sample(n=problem_size,
+                                                     replace=False).values)
     # shape: (batch, problem, 2)
 
     demand_scaler = 25000
 
-    rate = 1/382
+    rate = 1 / 382
     node_demand = torch.distributions.Exponential(rate).sample((batch_size, problem_size)) / demand_scaler
     # shape: (batch, problem)
 
@@ -30,39 +34,37 @@ def get_random_problems(batch_size, problem_size):
 
     tw_scalar = 14
     horizon_start = 5
-    lower_tw = torch.tensor([5],dtype=torch.float32).repeat(batch_size, problem_size, 1)
-    upper_tw = torch.tensor([19],dtype=torch.float32).repeat(batch_size, problem_size, 1)
-    lower_tw[samples] = (torch.randint(15, 21, (batch_size, problem_size, 1))/ 2)[samples]
-    upper_tw[samples] = (torch.randint(30, 38, (batch_size, problem_size, 1))/ 2)[samples]
+    lower_tw = torch.tensor([5], dtype=torch.float32).repeat(batch_size, problem_size, 1)
+    upper_tw = torch.tensor([19], dtype=torch.float32).repeat(batch_size, problem_size, 1)
+    lower_tw[samples] = (torch.randint(15, 21, (batch_size, problem_size, 1)) / 2)[samples]
+    upper_tw[samples] = (torch.randint(30, 38, (batch_size, problem_size, 1)) / 2)[samples]
     time_windows = torch.cat((lower_tw, upper_tw), dim=2)
     time_windows = (time_windows - horizon_start) / tw_scalar
 
     empty_tensor = torch.empty(batch_size, problem_size)
     service_times = torch.nn.init.trunc_normal_(empty_tensor, mean=0.23, std=0.24,
                                                 a=0.05, b=0.6)
-
-    p=0.02
+    p = 0.02
     # Create tensor of probabilities
     samples = torch.rand((batch_size, problem_size)) < p
-    service_times[samples] = (torch.randint(100,151, (batch_size,problem_size))/100)[samples]
-    service_times = service_times/tw_scalar
+    service_times[samples] = (torch.randint(100, 151, (batch_size, problem_size)) / 100)[samples]
+    service_times = service_times / tw_scalar
 
     travel_times = torch.zeros((batch_size, problem_size + 1, problem_size + 1))
     for x in range(batch_size):
         coords = torch.cat((depot_xy[x], node_xy[x]), 0)
-        distances = manhattan_geo_distance_matrix(coords) #torch.cdist(coords, coords, p=2)
-        speeds = 60*(distances/10)
-        speeds[speeds<35] = 35
-        speeds[speeds>80]=  80
-        travel_times[x] = distances/speeds
+        distances = manhattan_geo_distance_matrix(coords)  # torch.cdist(coords, coords, p=2)
+        speeds = 60 * (distances / 10)
+        speeds[speeds < 35] = 35
+        speeds[speeds > 80] = 80
+        travel_times[x] = distances / speeds
         travel_times[x].fill_diagonal_(0)
-        # travel_times[x, travel_times[x] < 0.5] = travel_times[x, travel_times[x] < 0.5]*5
 
     travel_times = travel_times / tw_scalar
     time_windows = repair_time_windows(travel_times, time_windows, service_times,
                                        tw_scalar, 4)
 
-    depot_xy[:,:,0] = (depot_xy[:,:,0]-4)/3
+    depot_xy[:, :, 0] = (depot_xy[:, :, 0] - 4) / 3
     depot_xy[:, :, 1] = (depot_xy[:, :, 1] - 51) / 2.5
     node_xy[:, :, 0] = (node_xy[:, :, 0] - 4) / 3
     node_xy[:, :, 1] = (node_xy[:, :, 1] - 51) / 2.5
