@@ -13,8 +13,6 @@ def get_random_problems(batch_size, problem_size):
     depot_y = 52.0308709742657
     depot_xy = torch.tensor([depot_x, depot_y]).repeat(batch_size, 1, 1)
     # shape: (batch, 1, 2)
-    depot_time_window = torch.tensor([0, 1]).repeat(batch_size, 1, 1)
-    # shape: (batch, 1, 2)
 
     node_xy = torch.zeros((batch_size, problem_size, 2))
     for x in range(batch_size):
