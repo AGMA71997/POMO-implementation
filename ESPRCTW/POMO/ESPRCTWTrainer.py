@@ -34,8 +34,6 @@ class ESPRCTWTrainer:
         self.result_folder = get_result_folder()
         self.result_log = LogData()
 
-        self.except_count = 0
-
         # cuda
         USE_CUDA = self.trainer_params['use_cuda']
         if USE_CUDA:
@@ -152,15 +150,9 @@ class ESPRCTWTrainer:
             remaining = train_num_episode - episode
             batch_size = min(self.trainer_params['train_batch_size'], remaining)
 
-            try:
-                avg_score, avg_loss = self._train_one_batch(batch_size)
-                score_AM.update(avg_score, batch_size)
-                loss_AM.update(avg_loss, batch_size)
-            except Exception as e:
-                print(e)
-                self.except_count +=1
-                if self.except_count ==10:
-                    sys.exit(0)
+            avg_score, avg_loss = self._train_one_batch(batch_size)
+            score_AM.update(avg_score, batch_size)
+            loss_AM.update(avg_loss, batch_size)
 
             episode += batch_size
 
