@@ -56,11 +56,12 @@ def get_random_problems(batch_size, problem_size):
     duals = torch.zeros((batch_size, problem_size+1))
     for x in range(batch_size):
         coords = torch.cat((depot_xy[x], node_xy[x]), 0)
+        #distance = torch.cdist(coords,coords,p=2)
         distances = manhattan_geo_distance_matrix(coords) #torch.cdist(coords, coords, p=2)
-        speeds = 60*(distances/10)
+        '''speeds = 60*(distances/10)
         speeds[speeds<35] = 35
-        speeds[speeds>80]=  80
-        travel_times[x] = distances/speeds
+        speeds[speeds>80]=  80'''
+        travel_times[x] = distances/60#speeds
         travel_times[x].fill_diagonal_(0)
         duals[x] = create_duals(travel_times[x])
         prices[x] = (travel_times[x] -duals[x]) * -1
@@ -88,7 +89,7 @@ def create_duals(time_matrix):
     duals = torch.zeros(size=(problem_size+1,), dtype=torch.float32)
     indices = list(range(1, problem_size+1))
     scaler = 0.2 + 0.9 * torch.rand([]) #0.75*torch.rand([])
-    non_zeros = random.randint(problem_size / 2, problem_size)
+    non_zeros = random.randint(int(problem_size / 2), problem_size)
     chosen = random.sample(indices, non_zeros)
     max_travel_times, _ = torch.max(time_matrix,dim=0)
     randoms = torch.rand(size=(non_zeros,))
